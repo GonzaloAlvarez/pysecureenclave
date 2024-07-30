@@ -1,0 +1,37 @@
+site_name: pysecureenclave
+
+site_url: https://GonzaloAlvarez.github.io/pysecureenclave
+
+repo_url: https://github.com/GonzaloAlvarez/pysecureenclave
+
+theme:
+    palette:
+        scheme: preference
+    name: material
+    icon:
+        repo: fontawesome/brands/github
+    features:
+        - navigation.instant
+        - search.highlight
+
+plugins:
+    - search
+    - mkdocstrings
+    - git-revision-date
+
+markdown_extensions:
+    - toc:
+        permalink: True
+    - abbr
+    - meta
+
+nav:
+    - Home: index.md
+    - Installation: installation.md
+    - Usage: usage.md
+    - Contributing: contributing.md
+    - FAQ: faq.md
+    - Changelog: changelog.md
+    - Report Issues: https://github.com/GonzaloAlvarez/pysecureenclave/issues
+    - API Reference:
+          - pysecureenclave module: pysecureenclave.md
