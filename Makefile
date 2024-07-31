@@ -33,7 +33,7 @@ clean-build: ## remove build artifacts
 	rm -fr dist/
 	rm -fr .eggs/
 	find . -name '*.egg-info' -exec rm -fr {} +
-	find . -name '*.egg' -exec rm -f {} +
+	find . -name '*.egg' -exec rm -Rf {} +
 
 clean-pyc: ## remove Python file artifacts
 	find . -name '*.pyc' -exec rm -f {} +
@@ -100,6 +100,11 @@ dist: clean ## builds source and wheel package
 	python setup.py sdist
 	python setup.py bdist_wheel
 	ls -l dist
+
+package: ## Creates a pex package in the dist folder
+	rm -Rf dist
+	mkdir dist
+	pex . -o dist/pysecureenclave.pex --python-shebang='/usr/bin/env python3' -v -e secureenclave.cli:cli
 
 install: clean ## install the package to the active Python's site-packages
 	python setup.py install
