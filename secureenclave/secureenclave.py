@@ -17,6 +17,8 @@ from pathlib import Path
 from io import StringIO
 from bullet import YesNo
 
+from .gpgagent import GpgAgent
+
 __author__ = 'GaPyTools'
 __program__ = 'SecureEnclave'
 
@@ -35,12 +37,6 @@ keyid-format 0xlong
 list-options show-uid-validity
 verify-options show-uid-validity
 with-fingerprint
-"""
-
-__gpg_agent_conf__ = """pinentry-program {}
-enable-ssh-support
-default-cache-ttl 600
-max-cache-ttl 7200
 """
 
 __gpg_fetch_key__ = """admin
@@ -73,9 +69,9 @@ class SecureEnclave(object):
             logger.debug(f"GPG Home folder [{self.gpg_home}]")
             with self.gpg_home.joinpath('gpg.conf').open('w') as conffile:
                 conffile.write(__gpg_conf__)
-            with self.gpg_home.joinpath('gpg-agent.conf').open('w') as agentfile:
-                agentfile.write(__gpg_agent_conf__.format(self.execs['pinentry-tty']))
             logger.debug("Configuration written")
+        self.gpg_agent = GpgAgent(self.gpg_home)
+
 
     def _getenv(self):
         environment = {}
@@ -127,12 +123,7 @@ class SecureEnclave(object):
 
 
     def __enter__(self):
-        gpgagent_cmd = [self.execs['gpg-agent'], '--daemon', '--verbose', '--enable-ssh-support', '--log-file', self.gpg_home.joinpath('gpg-agent.log').as_posix()]
-        subprocess.run(gpgagent_cmd, env=self._getenv(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        gpg_pid_cmd = [self.execs['gpg-connect-agent'], '/subst', '/serverpid', '/echo ${get serverpid}', '/bye']
-        gpg_pid_out = subprocess.run(gpg_pid_cmd, env=self._getenv(), capture_output=True)
-        self.gpgagent_pid = int(gpg_pid_out.stdout.decode("utf-8").strip())
-        logger.debug(self.gpgagent_pid)
+        self.gpg_agent.start()
         if self.is_card_installed():
             key_list = self._get_keylist()
             if hasattr(self, 'card_sec_id') and self.card_sec_id and self.card_sec_id in key_list:
@@ -144,12 +135,7 @@ class SecureEnclave(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if psutil.pid_exists(self.gpgagent_pid):
-            agentprocess = psutil.Process(self.gpgagent_pid)
-            agentprocess.terminate()
-            gone, alive = psutil.wait_procs([agentprocess], timeout=3)
-            for proc in alive:
-                proc.kill()
+        self.gpg_agent.stop()
 
     def key_status(self):
         gpg_cmd = '{} --quiet --batch --card-status --no-tty'.format(self.execs['gpg'])
