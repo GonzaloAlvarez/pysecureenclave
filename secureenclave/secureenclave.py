@@ -59,6 +59,15 @@ def lookup_executables(exec_names):
 
 
 class SecureEnclave(object):
+
+    @staticmethod
+    def purge():
+        home = Path(platformdirs.user_data_dir(__program__, __author__))
+        client = YesNo('Are you sure you want to remove the configuration folder for Secure Enclave and all the stored keys? ', default='n')
+        if client.launch():
+            shutil.rmtree(home)
+            logger.debug('Configuration removed')
+
     def __init__(self):
         self.execs = lookup_executables(['gpg', 'gpg-agent', 'pinentry-tty', 'gpg-connect-agent'])
         self.home = Path(platformdirs.user_data_dir(__program__, __author__))

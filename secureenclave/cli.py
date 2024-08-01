@@ -71,5 +71,13 @@ def trust(ctx, **kwargs):
         secureenclave.trust_keys()
 
 
+@cli.command(name='purge', help='Removes configuration from this machine, including all trusted keys')
+@click_loguru.logging_options
+@click_loguru.init_logger(logfile=False)
+@click.pass_context
+def purge(ctx, **kwargs):
+    SecureEnclave.purge()
+
+
 if __name__ == "__main__":
     sys.exit(cli(obj={})) # pragma: no cover
