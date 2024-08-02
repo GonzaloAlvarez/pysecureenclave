@@ -17,8 +17,8 @@ max-cache-ttl 7200
 """
 
 class GpgAgent(object):
-    def __init__(self, gpg_home):
-        self.gpg_home = gpg_home
+    def __init__(self, gpg):
+        self.gpg = gpg
         self.gpg_agent_bin = shutil.which('gpg-agent')
         if not self.gpg_agent_bin:
             raise Exception('Failed to find gpg-agent program. Use your package manager or homebrew to install it and make sure it is in the path.')
@@ -28,25 +28,16 @@ class GpgAgent(object):
         self.pinentry_bin = shutil.which('pinentry-tty')
         if not self.pinentry_bin:
             raise Exception('Failed to find pinentry-tty program. Use your package manager or homebrew to install it and make sure it is in the PATH.')
-        self.gpg_agent_conf_path = self.gpg_home.joinpath('gpg-agent.conf')
+        self.gpg_agent_conf_path = self.gpg.gethome().joinpath('gpg-agent.conf')
         if not self.gpg_agent_conf_path.exists():
             with self.gpg_agent_conf_path.open('w') as agentfile:
                 agentfile.write(__gpg_agent_conf__.format(self.pinentry_bin))
 
-    def _getenv(self):
-        environment = {}
-        environment['SSH_AUTH_SOCK'] = self.gpg_home.joinpath('S.gpg-agent.ssh').as_posix()
-        environment['GNUPGHOME'] = self.gpg_home.as_posix()
-        environment['GPG_TTY'] = os.ttyname(sys.stdout.fileno())
-        env = dict(os.environ)
-        env.update(environment)
-        return env
-
     def start(self):
-        gpgagent_cmd = [self.gpg_agent_bin, '--daemon', '--verbose', '--enable-ssh-support', '--log-file', self.gpg_home.joinpath('gpg-agent.log').as_posix()]
-        subprocess.run(gpgagent_cmd, env=self._getenv(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        gpgagent_cmd = [self.gpg_agent_bin, '--daemon', '--verbose', '--enable-ssh-support', '--log-file', self.gpg.gethome().joinpath('gpg-agent.log').as_posix()]
+        subprocess.run(gpgagent_cmd, env=self.gpg.getenv(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         gpg_pid_cmd = [self.gpg_connect_agent_bin, '/subst', '/serverpid', '/echo ${get serverpid}', '/bye']
-        gpg_pid_out = subprocess.run(gpg_pid_cmd, env=self._getenv(), capture_output=True)
+        gpg_pid_out = subprocess.run(gpg_pid_cmd, env=self.gpg.getenv(), capture_output=True)
         self.gpg_agent_pid = int(gpg_pid_out.stdout.decode("utf-8").strip())
 
     def stop(self):
