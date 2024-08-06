@@ -86,7 +86,7 @@ class SecureEnclave(object):
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
 
     def list_keys(self):
-        gpg_cmd = '{} --quiet --list-keys'.format(self.gpg.getbin())
+        gpg_cmd = '{} --list-keys --with-keygrip'.format(self.gpg.getbin())
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
 
     def encrypt(self, input, output):
@@ -98,22 +98,23 @@ class SecureEnclave(object):
             gpg_cmd = '{} --quiet --armor --encrypt --recipient {} -o {} {}'.format(self.gpg.getbin(), key_id, output, input)
             invoke.run(gpg_cmd, env=self.gpg.getenv(), hide=False, pty=True)
 
-    def _trust_key(self, keyid):
-        gpg_cmd = '{} --quiet --expert --batch --display-charset utf-8 --command-fd 0 --no-tty --edit-key {}'.format(self.gpg.getbin(), keyid)
-        invoke.run(gpg_cmd, env=self.gpg.getenv(), hide=True, in_stream=StringIO(__gpg_trust_key__))
-
     def trust_keys(self):
         key_list = self.gpg.get_keys()
         logger.debug(len(key_list))
         logger.debug(key_list)
+        trusted_count = 0
         for key in key_list:
             if key.trust == 'ultimate':
                 logger.debug('Key already trusted {key.uid}')
             else:
+                trusted_count += 1
                 logger.info(f'Key UID: {key.uid}')
                 client = YesNo(f'Would you like to trust [{key.fingerprint}] ', default='n')
                 if client.launch():
-                    self._trust_key(key.fingerprint)
+                    gpg_cmd = '{} --quiet --expert --batch --display-charset utf-8 --command-fd 0 --no-tty --edit-key {}'.format(self.gpg.getbin(), key.fingerprint)
+                    invoke.run(gpg_cmd, env=self.gpg.getenv(), hide=True, in_stream=StringIO(__gpg_trust_key__))
+        if trusted_count == 0:
+            logger.info('No untrusted keys to trust')
 
     def decrypt(self, input, output):
         logger.debug('Decrypting with GPG')

@@ -12,7 +12,7 @@ log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}
 click_loguru = ClickLoguru(__program__, __version__, stderr_format_func=lambda x: log_format)
 
 
-@click.group(invoke_without_command=True)
+@click.group(invoke_without_command=False)
 @click_loguru.logging_options
 @click_loguru.stash_subcommand()
 @click_loguru.init_logger(logfile=False)
@@ -44,7 +44,15 @@ def dec(ctx, inputfile, outputfile, **kwargs):
         secureenclave.decrypt(inputfile, outputfile)
 
 
-@cli.command(name='keylist', help='List keys')
+@cli.group(help='Key related operations')
+@click_loguru.logging_options
+@click_loguru.init_logger(logfile=False)
+@click.pass_context
+def key(ctx, **kwargs):
+    pass
+
+
+@key.command(name='list', help='List keys')
 @click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
