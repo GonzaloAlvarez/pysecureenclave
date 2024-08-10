@@ -15,7 +15,7 @@ import re
 from loguru import logger
 from pathlib import Path
 from io import StringIO
-from bullet import YesNo
+from bullet import YesNo, Input, VerticalPrompt, Bullet
 
 from .gpgagent import GpgAgent
 from .gpg import Gpg
@@ -88,6 +88,24 @@ class SecureEnclave(object):
     def list_keys(self):
         gpg_cmd = '{} --list-keys --with-keygrip'.format(self.gpg.getbin())
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+
+    def new_key(self):
+        prompts = VerticalPrompt([
+            Input('Full name: '),
+            Input('Email address: '),
+            Input('Key name: ')], spacing=0).launch()
+        gpg_cmd = '{} -q --batch --quick-generate-key "{} ({}) <{}>" rsa4096 cert never'.format(self.gpg.getbin(), prompts[0][1], prompts[2][1], prompts[1][1])
+        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+
+
+    def del_key(self):
+        keys = self.gpg.get_keys()
+        selected = Bullet('Select which key to delete: ', keys).launch()
+        gpg_cmd = '{} -q --batch --delete-secret-key {}'.format(self.gpg.getbin(), selected.fingerprint)
+        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+        gpg_cmd = '{} -q --batch --delete-key {}'.format(self.gpg.getbin(), selected.fingerprint)
+        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+
 
     def encrypt(self, input, output):
         key_list = self.gpg.get_keys()

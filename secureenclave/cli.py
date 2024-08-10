@@ -61,6 +61,24 @@ def keylist(ctx, **kwargs):
         secureenclave.list_keys()
 
 
+@key.command(name='new', help='New key generation')
+@click_loguru.logging_options
+@click_loguru.init_logger(logfile=False)
+@click.pass_context
+def keynew(ctx, **kwargs):
+    with SecureEnclave() as secureenclave:
+        secureenclave.new_key()
+
+
+@key.command(name='del', help='Delete Key')
+@click_loguru.logging_options
+@click_loguru.init_logger(logfile=False)
+@click.pass_context
+def keydel(ctx, **kwargs):
+    with SecureEnclave() as secureenclave:
+        secureenclave.del_key()
+
+
 @cli.command(name='keystatus', help='Show Status of Key Card')
 @click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
@@ -70,11 +88,11 @@ def keystatus(ctx, **kwargs):
         secureenclave.key_status()
 
 
-@cli.command(name='trust', help='Trust a specific key from the list')
+@key.command(name='trust', help='Trust a specific key from the list')
 @click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
-def trust(ctx, **kwargs):
+def keytrust(ctx, **kwargs):
     with SecureEnclave() as secureenclave:
         secureenclave.trust_keys()
 

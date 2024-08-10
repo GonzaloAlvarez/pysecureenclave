@@ -38,6 +38,18 @@ class GpgKey:
     fingerprint: str
     trust: str
 
+    def __str__(self):
+        return self.uid.strip()
+
+    def __len__(self):
+        return len(self.uid.strip())
+
+    def __add__(self, other):
+        return str(self) + other
+
+    def __radd__(self, other):
+        return other + str(self)
+
 class Gpg(object):
     def __init__(self, homepath):
         self.gpg_bin = shutil.which('gpg')
