@@ -12,6 +12,7 @@ import re
 
 from dataclasses import dataclass
 from loguru import logger
+from typing import List
 
 
 __gpg_conf__ = """use-agent
@@ -80,7 +81,7 @@ class Gpg(object):
         return self.gpg_bin
 
     def get_keys(self):
-        keys = []
+        keys : List[GpgKey] = []
         gpg_cmd = '{} --quiet --list-keys'.format(self.getbin())
         output = invoke.run(gpg_cmd, env=self.getenv(), pty=True, hide=True)
         raw = output.stdout # type: ignore

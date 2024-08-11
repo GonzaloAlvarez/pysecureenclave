@@ -15,7 +15,7 @@ import re
 from loguru import logger
 from pathlib import Path
 from io import StringIO
-from bullet import YesNo, Input, VerticalPrompt, Bullet
+from bullet import YesNo, Input, VerticalPrompt, Bullet, Password
 
 from .gpgagent import GpgAgent
 from .gpg import Gpg
@@ -91,16 +91,37 @@ class SecureEnclave(object):
 
     def new_key(self):
         prompts = VerticalPrompt([
-            Input('Full name: '),
-            Input('Email address: '),
-            Input('Key name: ')], spacing=0).launch()
-        gpg_cmd = '{} -q --batch --quick-generate-key "{} ({}) <{}>" rsa4096 cert never'.format(self.gpg.getbin(), prompts[0][1], prompts[2][1], prompts[1][1])
-        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+            Input("Key Owner Full name: "),
+            Input("Key Owner Email address: "),
+            Input("Key Name: "),
+            Password("Key Password: "),
+            Password("Confirm Key Password: ")], spacing=0).launch()
+        if prompts[3][1] != prompts[4][1]:
+            logger.error("Passwords do not match. Try again.")
+            return False
+        new_key_uid = f'{prompts[0][1]} ({prompts[2][1]}) <{prompts[1][1]}>'
+        passphrase = prompts[3][1]
+        logger.info("Creating new key")
+        gpg_cmd = '{} -q --batch --passphrase {} --quick-generate-key "{}" rsa4096 cert never'.format(self.gpg.getbin(), passphrase, new_key_uid)
+        result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+        if result.exited != 0: # type:ignore
+            logger.error("Could not create the master key properly")
+            return False
+        new_key = next(iter([x for x in self.gpg.get_keys() if x.uid == new_key_uid]))
+        logger.debug(f'New key with fingerprint {new_key.fingerprint}')
+        logger.info('New key created. Creating its subkeys')
+        for subkey_type in ['sign', 'encrypt', 'auth']:
+            gpg_cmd = '{} -q --batch --pinentry-mode=loopback --passphrase {} --quick-add-key "{}" rsa4096 "{}" "2y"'.format(self.gpg.getbin(), passphrase, new_key.fingerprint, subkey_type)
+            result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+            if result.exited != 0: # type:ignore
+                logger.error(f'Could not create {subkey_type} subkey properly')
+                return False
+        logger.info('Key creation completed. Use "key list" to explore')
 
 
     def del_key(self):
         keys = self.gpg.get_keys()
-        selected = Bullet('Select which key to delete: ', keys).launch()
+        selected = Bullet('Select which key to delete: ', keys).launch() # type:ignore
         gpg_cmd = '{} -q --batch --delete-secret-key {}'.format(self.gpg.getbin(), selected.fingerprint)
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
         gpg_cmd = '{} -q --batch --delete-key {}'.format(self.gpg.getbin(), selected.fingerprint)
