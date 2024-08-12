@@ -131,8 +131,8 @@ class SecureEnclave(object):
     def encrypt(self, input, output):
         key_list = self.gpg.get_keys()
         if len(key_list):
-            # TODO: Uses the first key for now
-            key_id = key_list[0].fingerprint
+            selected = Bullet('Select which key to delete: ', key_list).launch() # type:ignore
+            key_id = selected.fingerprint
             logger.debug(f'Encrypting with keyid [{key_id}]')
             gpg_cmd = '{} --quiet --armor --encrypt --recipient {} -o {} {}'.format(self.gpg.getbin(), key_id, output, input)
             invoke.run(gpg_cmd, env=self.gpg.getenv(), hide=False, pty=True)
