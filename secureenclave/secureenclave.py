@@ -19,6 +19,7 @@ from bullet import YesNo, Input, VerticalPrompt, Bullet, Password
 
 from .gpgagent import GpgAgent
 from .gpg import Gpg
+from .smartcard import SmartCard
 
 __author__ = 'GaPyTools'
 __program__ = 'SecureEnclave'
@@ -47,6 +48,7 @@ class SecureEnclave(object):
         self.home = Path(platformdirs.user_data_dir(__program__, __author__))
         self.gpg = Gpg(self.home)
         self.gpg_agent = GpgAgent(self.gpg)
+        self.smartcard = SmartCard(self.gpg)
 
 
     def is_card_installed(self):
@@ -81,9 +83,16 @@ class SecureEnclave(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.gpg_agent.stop()
 
-    def key_status(self):
+    def card_status(self):
         gpg_cmd = '{} --quiet --batch --card-status --no-tty'.format(self.gpg.getbin())
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+
+    def card_list(self):
+        cards = self.smartcard.list_cards()
+        logger.info(f'Number of cards: {len(cards)}')
+        for idx, card in enumerate(cards):
+            dev, info = card
+            logger.info(f'Card {idx+1}: {dev.fingerprint}')
 
     def list_keys(self):
         gpg_cmd = '{} --list-keys --with-keygrip'.format(self.gpg.getbin())

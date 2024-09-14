@@ -40,6 +40,12 @@ class GpgAgent(object):
         gpg_pid_out = subprocess.run(gpg_pid_cmd, env=self.gpg.getenv(), capture_output=True)
         self.gpg_agent_pid = int(gpg_pid_out.stdout.decode("utf-8").strip())
 
+    def list_readers(self):
+        gpg_lc_cmd = [self.gpg_connect_agent_bin, '--hex', 'scd getinfo reader_list', '/bye']
+        gpg_lc_out = subprocess.run(gpg_lc_cmd, env=self.gpg.getenv(), capture_output=True)
+        return gpg_lc_out.stdout.decode("utf-8").strip() # type:ignore
+
+
     def stop(self):
         if psutil.pid_exists(self.gpg_agent_pid):
             agentprocess = psutil.Process(self.gpg_agent_pid)

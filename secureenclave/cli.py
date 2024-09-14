@@ -79,14 +79,33 @@ def keydel(ctx, **kwargs):
         secureenclave.del_key()
 
 
-@cli.command(name='keystatus', help='Show Status of Key Card')
+@cli.group(help='Smart Card related operations')
 @click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
-def keystatus(ctx, **kwargs):
-    with SecureEnclave() as secureenclave:
-        secureenclave.key_status()
+def card(ctx, **kwargs):
+    pass
 
+@card.command(name='status', help='Show Status of Key Card')
+@click_loguru.logging_options
+@click_loguru.init_logger(logfile=False)
+@click.pass_context
+def cardstatus(ctx, **kwargs):
+    with SecureEnclave() as secureenclave:
+        logger.info('Waiting for smart card to be inserted')
+        secureenclave.smartcard.wait_for_it()
+        secureenclave.card_status()
+
+
+@card.command(name='list', help='List cards')
+@click_loguru.logging_options
+@click_loguru.init_logger(logfile=False)
+@click.pass_context
+def cardslist(ctx, **kwargs):
+    with SecureEnclave() as secureenclave:
+        logger.info('Waiting for smart card to be inserted')
+        secureenclave.smartcard.wait_for_it()
+        secureenclave.card_list()
 
 @key.command(name='trust', help='Trust a specific key from the list')
 @click_loguru.logging_options

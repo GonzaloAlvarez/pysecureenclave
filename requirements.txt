@@ -5,3 +5,4 @@ platformdirs==4.2.2
 invoke==2.2.0
 psutil==6.0.0
 bullet==2.2.0
+yubikey-manager==5.5.1
