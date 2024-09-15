@@ -66,10 +66,8 @@ class Gpg(object):
             logger.debug("Configuration written")
 
     def getenv(self):
-        environment = {}
-        environment['SSH_AUTH_SOCK'] = self.gpg_home.joinpath('S.gpg-agent.ssh').as_posix()
-        environment['GNUPGHOME'] = self.gpg_home.as_posix()
-        environment['GPG_TTY'] = os.ttyname(sys.stdout.fileno())
+        environment = {'SSH_AUTH_SOCK': self.gpg_home.joinpath('S.gpg-agent.ssh').as_posix(),
+                       'GNUPGHOME': self.gpg_home.as_posix(), 'GPG_TTY': os.ttyname(sys.stdout.fileno())}
         env = dict(os.environ)
         env.update(environment)
         return env

@@ -1,9 +1,10 @@
 """Console script for pysecureenclave."""
 import sys
 import click
-from loguru import logger
 from click_loguru import ClickLoguru
 from .secureenclave import SecureEnclave
+from .cli_keycmds import key_list, key_del, key_new, key_trust
+from .cli_cardcmds import card_status, card_list
 
 __program__ = 'secureenclave'
 __version__ = '0.0.1'
@@ -25,23 +26,23 @@ def cli(ctx, **kwargs):
 @cli.command(name='enc', help='Encrypt file')
 @click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
-@click.argument('inputfile', type=click.Path(exists=True))
-@click.argument('outputfile')
+@click.argument('input_file', type=click.Path(exists=True))
+@click.argument('output_file')
 @click.pass_context
-def enc(ctx, inputfile, outputfile, **kwargs):
-    with SecureEnclave() as secureenclave:
-        secureenclave.encrypt(inputfile, outputfile)
+def enc(ctx, input_file, output_file, **kwargs):
+    with SecureEnclave() as secure_enclave:
+        secure_enclave.encrypt(input_file, output_file)
 
 
 @cli.command(name='dec', help='Decrypt file')
 @click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
-@click.argument('inputfile', type=click.Path(exists=True))
-@click.argument('outputfile')
+@click.argument('input_file', type=click.Path(exists=True))
+@click.argument('output_file')
 @click.pass_context
-def dec(ctx, inputfile, outputfile, **kwargs):
-    with SecureEnclave() as secureenclave:
-        secureenclave.decrypt(inputfile, outputfile)
+def dec(ctx, input_file, output_file, **kwargs):
+    with SecureEnclave() as secure_enclave:
+        secure_enclave.decrypt(input_file, output_file)
 
 
 @cli.group(help='Key related operations')
@@ -52,31 +53,10 @@ def key(ctx, **kwargs):
     pass
 
 
-@key.command(name='list', help='List keys')
-@click_loguru.logging_options
-@click_loguru.init_logger(logfile=False)
-@click.pass_context
-def keylist(ctx, **kwargs):
-    with SecureEnclave() as secureenclave:
-        secureenclave.list_keys()
-
-
-@key.command(name='new', help='New key generation')
-@click_loguru.logging_options
-@click_loguru.init_logger(logfile=False)
-@click.pass_context
-def keynew(ctx, **kwargs):
-    with SecureEnclave() as secureenclave:
-        secureenclave.new_key()
-
-
-@key.command(name='del', help='Delete Key')
-@click_loguru.logging_options
-@click_loguru.init_logger(logfile=False)
-@click.pass_context
-def keydel(ctx, **kwargs):
-    with SecureEnclave() as secureenclave:
-        secureenclave.del_key()
+key.add_command(key_trust)
+key.add_command(key_del)
+key.add_command(key_new)
+key.add_command(key_list)
 
 
 @cli.group(help='Smart Card related operations')
@@ -86,34 +66,8 @@ def keydel(ctx, **kwargs):
 def card(ctx, **kwargs):
     pass
 
-@card.command(name='status', help='Show Status of Key Card')
-@click_loguru.logging_options
-@click_loguru.init_logger(logfile=False)
-@click.pass_context
-def cardstatus(ctx, **kwargs):
-    with SecureEnclave() as secureenclave:
-        logger.info('Waiting for smart card to be inserted')
-        secureenclave.smartcard.wait_for_it()
-        secureenclave.card_status()
-
-
-@card.command(name='list', help='List cards')
-@click_loguru.logging_options
-@click_loguru.init_logger(logfile=False)
-@click.pass_context
-def cardslist(ctx, **kwargs):
-    with SecureEnclave() as secureenclave:
-        logger.info('Waiting for smart card to be inserted')
-        secureenclave.smartcard.wait_for_it()
-        secureenclave.card_list()
-
-@key.command(name='trust', help='Trust a specific key from the list')
-@click_loguru.logging_options
-@click_loguru.init_logger(logfile=False)
-@click.pass_context
-def keytrust(ctx, **kwargs):
-    with SecureEnclave() as secureenclave:
-        secureenclave.trust_keys()
+card.add_command(card_status)
+card.add_command(card_list)
 
 
 @cli.command(name='purge', help='Removes configuration from this machine, including all trusted keys')
