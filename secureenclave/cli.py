@@ -3,7 +3,7 @@ import sys
 import click
 from click_loguru import ClickLoguru
 from .secureenclave import SecureEnclave
-from .cli_keycmds import key_list, key_del, key_new, key_trust
+from .cli_keycmds import key_list, key_del, key_new, key_trust, key_import
 from .cli_cardcmds import card_status, card_list
 
 __program__ = 'secureenclave'
@@ -57,6 +57,7 @@ key.add_command(key_trust)
 key.add_command(key_del)
 key.add_command(key_new)
 key.add_command(key_list)
+key.add_command(key_import)
 
 
 @cli.group(help='Smart Card related operations')

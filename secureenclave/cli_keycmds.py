@@ -20,6 +20,16 @@ def key_list(ctx, **kwargs):
         secure_enclave.list_keys()
 
 
+@click.command(name='import', help='List keys')
+@click_loguru.logging_options
+@click_loguru.init_logger(logfile=False)
+@click.argument('input_file', type=click.Path(exists=True))
+@click.pass_context
+def key_import(ctx, input_file, **kwargs):
+    with SecureEnclave() as secure_enclave:
+        secure_enclave.import_key(input_file)
+
+
 @click.command(name='new', help='New key generation')
 @click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)

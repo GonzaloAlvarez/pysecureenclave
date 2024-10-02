@@ -15,7 +15,7 @@ from loguru import logger
 from typing import List
 
 
-__gpg_conf__ = """use-agent
+__gpg_conf__: str = """use-agent
 personal-cipher-preferences AES256 AES192 AES CAST5
 personal-digest-preferences SHA512 SHA384 SHA256 SHA224
 default-preference-list SHA512 SHA384 SHA256 SHA224 AES256 AES192 AES CAST5 ZLIB BZIP2 ZIP Uncompressed

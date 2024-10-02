@@ -98,6 +98,10 @@ class SecureEnclave(object):
         gpg_cmd = '{} --list-keys --with-keygrip'.format(self.gpg.getbin())
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
 
+    def import_key(self, filename):
+        gpg_cmd = '{} --import {}'.format(self.gpg.getbin(), filename)
+        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+
     def new_key(self):
         prompts = VerticalPrompt([
             Input("Key Owner Full name: "),
