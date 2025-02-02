@@ -94,6 +94,10 @@ class SecureEnclave(object):
             dev, info = card
             logger.info(f'Card {idx+1}: {dev.fingerprint}')
 
+    def card_config(self, card_info):
+        if card_info.sex:
+            self.gpg.card_edit('sex', card_info.sex)
+
     def list_keys(self):
         gpg_cmd = '{} --list-keys --with-keygrip'.format(self.gpg.getbin())
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)

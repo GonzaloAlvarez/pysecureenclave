@@ -9,6 +9,7 @@ import os, sys
 import shutil
 import invoke
 import re
+from io import StringIO
 
 from dataclasses import dataclass
 from loguru import logger
@@ -30,6 +31,12 @@ keyid-format 0xlong
 list-options show-uid-validity
 verify-options show-uid-validity
 with-fingerprint
+"""
+
+__gpg_card_edit__ = """admin
+{}
+{}
+quit
 """
 
 @dataclass
@@ -102,4 +109,9 @@ class Gpg(object):
                     pub = fingerprint = uid = trust = None
         return keys
 
+
+    def card_edit(self, attribute, value):
+        __content__ = __gpg_card_edit__.format(attribute, value)
+        gpg_cmd = '{} --quiet --card-edit --expert --batch --display-charset utf-8 --no-tty --command-fd 0'.format(self.getbin())
+        invoke.run(gpg_cmd, env=self.getenv(), hide=True, in_stream=StringIO(__content__))
 
