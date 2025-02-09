@@ -5,6 +5,7 @@ from click_loguru import ClickLoguru
 from .secureenclave import SecureEnclave
 from .cli_keycmds import key_list, key_del, key_new, key_trust, key_import
 from .cli_cardcmds import card_status, card_list, card_config
+from .cli_certcmds import cert_newca
 
 __program__ = 'secureenclave'
 __version__ = '0.0.1'
@@ -71,6 +72,15 @@ card.add_command(card_status)
 card.add_command(card_list)
 card.add_command(card_config)
 
+
+@cli.group(help='Certificate related opertations')
+@click_loguru.logging_options
+@click_loguru.init_logger(logfile=False)
+@click.pass_context
+def cert(ctx, **kwargs):
+    pass
+
+cert.add_command(cert_newca)
 
 @cli.command(name='purge', help='Removes configuration from this machine, including all trusted keys')
 @click_loguru.logging_options

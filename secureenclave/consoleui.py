@@ -18,12 +18,12 @@ class ConsoleUI(object):
     def populate_object(self, object):
         inputs=[]
         for attr in fields(type(object)):
-            inputs.append(Input('{}: '.format(attr.name.capitalize())))
+            inputs.append(Input('{}: '.format(attr.name.replace("_"," ").title())))
 
         values = VerticalPrompt(inputs, spacing=0).launch()
 
         for i, attr in enumerate(fields(type(object))):
-            setattr(object, attr.name, values[i])
+            setattr(object, attr.name, values[i][1])
 
         return object
 
