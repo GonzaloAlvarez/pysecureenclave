@@ -31,8 +31,31 @@ class CertManager(object):
         if cert_info.common_name: attributes.append(x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, str(cert_info.common_name)))
         return attributes
 
+    def cert_from_file(self, file_name):
+        """
+        Open a file and read the content. Create an X509 certificate object from it.
+        """
+        with open(file_name, "rb") as cert_file:
+            content = cert_file.read()
+            cert = x509.load_pem_x509_certificate(content, default_backend())
+        return cert 
+       
+
+    def pk_from_file(self, file_name):
+        """
+        Open a file and read the content. Create an RSA private key object from it.
+        """
+        with open(file_name, 'rb') as f:
+            key = serialization.load_pem_private_key(
+                f.read(), None
+            )
+            return key
+
 
     def new_ca_cert(self, cert_info, key, valid_days = 729):
+        """
+        Create a new CA certificate object.
+        """
         subject = issuer = x509.Name(self._create_subject(cert_info))
         logger.info("Generating CA Certificate")
         cert_builder = x509.CertificateBuilder(
@@ -54,6 +77,14 @@ class CertManager(object):
         return cert
 
     def new_server_cert(self, server_info, server_key, ca_cert, ca_pk, valid_days = 729):
+        """
+        Create a new server certificate.
+          :param server_info: The server certificate information.
+          :param server_key: The server key.
+          :param ca_cert: The CA certificate.
+          :param ca_pk: The CA private key.
+          :param valid_days: The number of days the certificate is valid for.
+        """
         subject = x509.Name(self._create_subject(server_info))
         cert_builder = x509.CertificateBuilder(
         ).subject_name(subject
