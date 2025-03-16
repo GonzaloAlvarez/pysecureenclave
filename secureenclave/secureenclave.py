@@ -52,6 +52,7 @@ class SecureEnclave(object):
 
 
     def is_card_installed(self):
+        """Check if a smartcard is installed"""
         try:
             gpg_cmd = '{} --quiet --batch --card-status --no-tty'.format(self.gpg.getbin())
             result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True, hide=True)
@@ -68,6 +69,7 @@ class SecureEnclave(object):
 
 
     def __enter__(self):
+        """Enter context manager"""
         self.gpg_agent.start()
         if self.is_card_installed():
             key_list = self.gpg.get_keys()
@@ -95,8 +97,16 @@ class SecureEnclave(object):
             logger.info(f'Card {idx+1}: {dev.fingerprint}')
 
     def card_config(self, card_info):
+        if card_info.first_name:
+            self.gpg.card_edit('name', f"{card_info.last_name}\n{card_info.first_name}")
+        if card_info.email:
+            self.gpg.card_edit('email', card_info.email)
+        if card_info.public_key_url:
+            self.gpg.card_edit('url', card_info.public_key_url)
         if card_info.sex:
             self.gpg.card_edit('sex', card_info.sex)
+        self.gpg.card_edit('lang', 'en')
+        self.gpg.card_edit('pinretrylimit', '3')
 
     def list_keys(self):
         gpg_cmd = '{} --list-keys --with-keygrip'.format(self.gpg.getbin())

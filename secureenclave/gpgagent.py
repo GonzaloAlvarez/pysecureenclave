@@ -5,7 +5,6 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-import os, sys
 import shutil
 import psutil
 import subprocess
@@ -18,6 +17,7 @@ max-cache-ttl 7200
 
 class GpgAgent(object):
     def __init__(self, gpg):
+        """Initialize GPG agent"""
         self.gpg = gpg
         self.gpg_agent_bin = shutil.which('gpg-agent')
         if not self.gpg_agent_bin:
@@ -34,6 +34,7 @@ class GpgAgent(object):
                 agentfile.write(__gpg_agent_conf__.format(self.pinentry_bin))
 
     def start(self):
+        """Start the GPG agent."""
         gpgagent_cmd = [self.gpg_agent_bin, '--daemon', '--verbose', '--enable-ssh-support', '--log-file', self.gpg.gethome().joinpath('gpg-agent.log').as_posix()]
         subprocess.run(gpgagent_cmd, env=self.gpg.getenv(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         gpg_pid_cmd = [self.gpg_connect_agent_bin, '/subst', '/serverpid', '/echo ${get serverpid}', '/bye']
@@ -41,12 +42,14 @@ class GpgAgent(object):
         self.gpg_agent_pid = int(gpg_pid_out.stdout.decode("utf-8").strip())
 
     def list_readers(self):
+        """List smartcard readers."""
         gpg_lc_cmd = [self.gpg_connect_agent_bin, '--hex', 'scd getinfo reader_list', '/bye']
         gpg_lc_out = subprocess.run(gpg_lc_cmd, env=self.gpg.getenv(), capture_output=True)
         return gpg_lc_out.stdout.decode("utf-8").strip() # type:ignore
 
 
     def stop(self):
+        """Stop gpg-agent."""
         if psutil.pid_exists(self.gpg_agent_pid):
             agentprocess = psutil.Process(self.gpg_agent_pid)
             agentprocess.terminate()

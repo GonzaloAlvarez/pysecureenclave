@@ -10,7 +10,11 @@ from typing import Optional
 
 @dataclass
 class CardInfo(object):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
     sex: Optional[str] = None
+    public_key_url: Optional[str] = None
 
 
 @dataclass
