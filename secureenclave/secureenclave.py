@@ -14,13 +14,11 @@ import uuid
 from loguru import logger
 from pathlib import Path
 from io import StringIO
-from bullet import YesNo, Input, VerticalPrompt, Bullet, Password
+from bullet import YesNo, Bullet
 
 from .gpg import Gpg
 from .gpgagent import GpgAgent
 from .smartcard import SmartCard
-from .datamodel import IdentityInfo
-from .consoleui import ConsoleUI
 
 
 __author__ = 'Gonzalo Alvarez'
@@ -231,7 +229,7 @@ class SecureEnclave(object):
         if not new_key_uid:
             logger.error("New key UID not provided.")
             return False
-            
+
         logger.info(f"Creating new GPG key for UID: {new_key_uid}")
         gpg_cmd = '{} -q --batch --passphrase {} --quick-generate-key "{}" rsa4096 cert never'.format(self.gpg.getbin(), passphrase, new_key_uid)
         result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
@@ -239,13 +237,13 @@ class SecureEnclave(object):
             logger.error("Could not create the master GPG key properly.")
             logger.error(f"GPG command output: {result.stdout} {result.stderr}")
             return False
-        
+
         created_key = None
-        for key_attempt in self.gpg.get_keys(): 
+        for key_attempt in self.gpg.get_keys():
             if new_key_uid in key_attempt.uid:
                 created_key = key_attempt
                 break
-        
+
         if not created_key:
             logger.error(f"Failed to find the newly created GPG key with UID part: {new_key_uid}. Please check GPG manually.")
             available_keys_uids = [k.uid for k in self.gpg.get_keys()]

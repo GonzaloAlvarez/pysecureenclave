@@ -41,12 +41,11 @@ class ConsoleUI_Keys(object):
                 logger.info("Key creation cancelled as no identity was available or created.")
                 return None, None
         else:
-            # Identities exist, present them with an option to create a new one
             identity_display_strings = [
                 f"{identity['first_name']} {identity['last_name']} <{identity['email']}>"
                 for identity in identities
             ]
-            
+
             CREATE_NEW_ACTION_LABEL = "Create a new identity..."
             bullet_choices = identity_display_strings + [CREATE_NEW_ACTION_LABEL]
 
@@ -61,17 +60,15 @@ class ConsoleUI_Keys(object):
             )
             selected_choice_str = selection_prompt.launch()
 
-            if selected_choice_str is None: # User cancelled the prompt (e.g., Ctrl+C)
+            if selected_choice_str is None:
                 logger.info("Identity selection cancelled. Key creation aborted.")
                 return None, None
 
             if selected_choice_str == CREATE_NEW_ACTION_LABEL:
                 should_create_new_identity = True
             else:
-                # An existing identity was chosen. Find the corresponding dict by index.
                 try:
                     selected_index = bullet_choices.index(selected_choice_str)
-                    # Ensure the index is within the bounds of the original identities list
                     if selected_index < len(identities):
                         selected_identity_dict = identities[selected_index]
                         identity_info = IdentityInfo(
@@ -81,14 +78,12 @@ class ConsoleUI_Keys(object):
                             salutation=selected_identity_dict.get('salutation', '')
                         )
                     else:
-                        # This should not be reached if logic is correct
                         logger.error("Internal error: Selected choice index out of bounds. Key creation cancelled.")
                         return None, None
                 except ValueError:
-                     # Should not happen if Bullet returns a string from its choices
                     logger.error(f"Internal error: Selected choice '{selected_choice_str}' not in provided choices. Key creation cancelled.")
                     return None, None
-        
+
         if should_create_new_identity:
             logger.info("Creating a new identity for the key.")
             new_identity_obj = IdentityInfo()
@@ -100,7 +95,7 @@ class ConsoleUI_Keys(object):
                 logger.info("Identity creation cancelled by user. Key creation aborted.")
                 return None, None
 
-        if not identity_info: # Final check
+        if not identity_info:
             logger.info("Key creation aborted as no identity was specified or created.")
             return None, None
 
