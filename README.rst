@@ -17,30 +17,30 @@ Key Management
 
 ** List Keys **
 
-```bash
-$ pysecureenclave key list
-```
+.. code-block:: bash
+
+    $ pysecureenclave key list
 
 ** Create new Key **
 
-```bash
-$ pysecureenclave key new
-```
+.. code-block:: bash
+
+    $ pysecureenclave key new
 
 Card Management
 ++++++++++++++
 
 ** Configure Card **
 
-```shell
-$ pysecureenclave card config
-```
+.. code-block:: shell
+
+    $ pysecureenclave card config
 
 ** Move key to card **
 
-```shell
-$ pysecureenclave card importkey
-```
+.. code-block:: shell
+
+    $ pysecureenclave card importkey
 
 License
 -------
