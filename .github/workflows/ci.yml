@@ -18,6 +18,9 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Install libpcsclite-dev
+      run: sudo apt-get install -y libpcsclite-dev
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
