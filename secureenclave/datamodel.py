@@ -46,3 +46,23 @@ class IdentityInfo(object):
     last_name: Optional[str] = None
     email: Optional[str] = None
     salutation: Optional[str] = None
+
+
+@dataclass
+class GpgKey:
+    uid: str
+    pub: str
+    fingerprint: str
+    trust: str
+
+    def __str__(self):
+        return self.uid.strip()
+
+    def __len__(self):
+        return len(self.uid.strip())
+
+    def __add__(self, other):
+        return str(self) + other
+
+    def __radd__(self, other):
+        return other + str(self)
