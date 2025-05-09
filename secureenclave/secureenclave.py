@@ -229,8 +229,8 @@ class SecureEnclave(object):
         Returns:
             True if key creation was successful, False otherwise.
         """
-        if not new_key_uid or not passphrase:
-            logger.error("New key UID or passphrase not provided.")
+        if not new_key_uid:
+            logger.error("New key UID not provided.")
             return False
             
         logger.info(f"Creating new GPG key for UID: {new_key_uid}")
