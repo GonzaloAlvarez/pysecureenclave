@@ -4,7 +4,7 @@ import click
 from click_loguru import ClickLoguru
 from .secureenclave import SecureEnclave
 from .cli_keycmds import key_list, key_del, key_new, key_trust, key_import
-from .cli_cardcmds import card_status, card_list, card_config
+from .cli_cardcmds import card_status, card_list, card_config, card_import_key
 from .cli_certcmds import cert_newca, cert_newserver
 
 __program__ = 'secureenclave'
@@ -68,9 +68,11 @@ key.add_command(key_import)
 def card(ctx, **kwargs):
     pass
 
+
 card.add_command(card_status)
 card.add_command(card_list)
 card.add_command(card_config)
+card.add_command(card_import_key)
 
 
 @cli.group(help='Certificate related opertations')
@@ -80,8 +82,10 @@ card.add_command(card_config)
 def cert(ctx, **kwargs):
     pass
 
+
 cert.add_command(cert_newca)
 cert.add_command(cert_newserver)
+
 
 @cli.command(name='purge', help='Removes configuration from this machine, including all trusted keys')
 @click_loguru.logging_options
@@ -92,4 +96,4 @@ def purge(ctx, **kwargs):
 
 
 if __name__ == "__main__":
-    sys.exit(cli(obj={})) # pragma: no cover
+    sys.exit(cli(obj={}))  # pragma: no cover

@@ -9,7 +9,6 @@ import time
 
 from loguru import logger
 from ykman.device import list_all_devices, scan_devices
-from yubikit.core.smartcard import SmartCardConnection
 
 
 class SmartCard:
@@ -18,7 +17,7 @@ class SmartCard:
 
     def wait_for_it(self):
         state = None
-        card_not_found=False
+        card_not_found = False
         while True:
             pids, new_state = scan_devices()
             if new_state != state:

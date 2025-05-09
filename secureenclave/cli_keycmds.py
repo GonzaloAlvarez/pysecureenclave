@@ -11,6 +11,7 @@ __version__ = '0.0.1'
 log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>\n"
 click_loguru = ClickLoguru(__program__, __version__, stderr_format_func=lambda x: log_format)
 
+
 @click.command(name='list', help='List keys')
 @click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
@@ -20,7 +21,7 @@ def key_list(ctx, **kwargs):
         secure_enclave.list_keys()
 
 
-@click.command(name='import', help='List keys')
+@click.command(name='import', help='Import key into keyring')
 @click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
 @click.argument('input_file', type=click.Path(exists=True))

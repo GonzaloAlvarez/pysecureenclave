@@ -6,10 +6,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import shutil
 import platformdirs
-import os, sys
-import subprocess
 import invoke
-import psutil
 import re
 
 from loguru import logger
@@ -21,7 +18,7 @@ from .gpgagent import GpgAgent
 from .gpg import Gpg
 from .smartcard import SmartCard
 
-__author__ = 'GaPyTools'
+__author__ = 'Gonzalo Alvarez'
 __program__ = 'SecureEnclave'
 
 __gpg_fetch_key__ = """admin
@@ -34,6 +31,7 @@ __gpg_trust_key__ = """trust
 y
 quit
 """
+
 
 class SecureEnclave(object):
     @staticmethod
@@ -50,23 +48,29 @@ class SecureEnclave(object):
         self.gpg_agent = GpgAgent(self.gpg)
         self.smartcard = SmartCard(self.gpg)
 
-
     def is_card_installed(self):
         """Check if a smartcard is installed"""
         try:
             gpg_cmd = '{} --quiet --batch --card-status --no-tty'.format(self.gpg.getbin())
             result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True, hide=True)
-            if match := re.search('sec>  ([a-zA-Z0-9\\/]*)', result.stdout): # type: ignore
+            if match := re.search('sec>  ([a-zA-Z0-9\\/]*)', result.stdout):  # type: ignore
                 self.card_pub = match.group(1)
                 logger.debug(f'Found key in card [{self.card_pub}]')
             else:
                 logger.debug('Failed to match. No secure key in card')
-                logger.debug(result.stdout) # type: ignore
+                logger.debug(result.stdout)  # type: ignore
             return True
-        except:
+        except Exception:
             logger.debug('Card failed to be recognized')
             return False
 
+    def _run_cmd(self, cmd, silent=True, in_stream=None):
+        try:
+            invoke.run(cmd, env=self.gpg.getenv(), pty=not silent, hide=silent, in_stream=in_stream)
+        except Exception as e:
+            logger.warning('Invocation of GPG command has failed')
+            logger.warning(f'CMD: {cmd}')
+            logger.warning(f'Exception: {str(e)}')
 
     def __enter__(self):
         """Enter context manager"""
@@ -79,24 +83,28 @@ class SecureEnclave(object):
             else:
                 logger.info('A card is installed. Retrieving remote key id from card')
                 gpg_cmd = '{} --quiet --card-edit --expert --batch --display-charset utf-8 --no-tty --command-fd 0'.format(self.gpg.getbin())
-                invoke.run(gpg_cmd, env=self.gpg.getenv(), hide=True, in_stream=StringIO(__gpg_fetch_key__))
+                self._run_cmd(gpg_cmd, in_stream=StringIO(__gpg_fetch_key__))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context manager"""
         self.gpg_agent.stop()
 
     def card_status(self):
+        """Retrieve status of smartcard """
         gpg_cmd = '{} --quiet --batch --card-status --no-tty'.format(self.gpg.getbin())
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
 
     def card_list(self):
+        """List all available cards """
         cards = self.smartcard.list_cards()
         logger.info(f'Number of cards: {len(cards)}')
         for idx, card in enumerate(cards):
             dev, info = card
-            logger.info(f'Card {idx+1}: {dev.fingerprint}')
+            logger.info(f'Card {idx + 1}: {dev.fingerprint}')
 
     def card_config(self, card_info):
+        """Configure smartcard with given information """
         if card_info.first_name:
             self.gpg.card_edit('name', f"{card_info.last_name}\n{card_info.first_name}")
         if card_info.email:
@@ -108,8 +116,20 @@ class SecureEnclave(object):
         self.gpg.card_edit('lang', 'en')
         self.gpg.card_edit('pinretrylimit', '3')
 
+    def card_import_key(self):
+        """Import key into smartcard"""
+        keys = self.gpg.get_keys()
+        selected = Bullet('Select which key to delete: ', keys).launch()  # type:ignore
+        for key_number in 1, 2, 3:
+            self.gpg.card_key_edit(selected.fingerprint, key_number, key_number)
+
     def list_keys(self):
+        """List keys on smartcard"""
+        logger.info('Public keys')
         gpg_cmd = '{} --list-keys --with-keygrip'.format(self.gpg.getbin())
+        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+        logger.info('Private keys')
+        gpg_cmd = '{} --list-secret-keys'.format(self.gpg.getbin())
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
 
     def import_key(self, filename):
@@ -131,7 +151,7 @@ class SecureEnclave(object):
         logger.info("Creating new key")
         gpg_cmd = '{} -q --batch --passphrase {} --quick-generate-key "{}" rsa4096 cert never'.format(self.gpg.getbin(), passphrase, new_key_uid)
         result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
-        if result.exited != 0: # type:ignore
+        if result.exited != 0:  # type:ignore
             logger.error("Could not create the master key properly")
             return False
         new_key = next(iter([x for x in self.gpg.get_keys() if x.uid == new_key_uid]))
@@ -140,25 +160,23 @@ class SecureEnclave(object):
         for subkey_type in ['sign', 'encrypt', 'auth']:
             gpg_cmd = '{} -q --batch --pinentry-mode=loopback --passphrase {} --quick-add-key "{}" rsa4096 "{}" "2y"'.format(self.gpg.getbin(), passphrase, new_key.fingerprint, subkey_type)
             result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
-            if result.exited != 0: # type:ignore
+            if result.exited != 0:  # type:ignore
                 logger.error(f'Could not create {subkey_type} subkey properly')
                 return False
         logger.info('Key creation completed. Use "key list" to explore')
 
-
     def del_key(self):
         keys = self.gpg.get_keys()
-        selected = Bullet('Select which key to delete: ', keys).launch() # type:ignore
+        selected = Bullet('Select which key to delete: ', keys).launch()  # type:ignore
         gpg_cmd = '{} -q --batch --delete-secret-key {}'.format(self.gpg.getbin(), selected.fingerprint)
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
         gpg_cmd = '{} -q --batch --delete-key {}'.format(self.gpg.getbin(), selected.fingerprint)
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
 
-
     def encrypt(self, input, output):
         key_list = self.gpg.get_keys()
         if len(key_list):
-            selected = Bullet('Select which key to delete: ', key_list).launch() # type:ignore
+            selected = Bullet('Select which key to delete: ', key_list).launch()  # type:ignore
             key_id = selected.fingerprint
             logger.debug(f'Encrypting with keyid [{key_id}]')
             gpg_cmd = '{} --quiet --armor --encrypt --recipient {} -o {} {}'.format(self.gpg.getbin(), key_id, output, input)
@@ -186,4 +204,3 @@ class SecureEnclave(object):
         logger.debug('Decrypting with GPG')
         gpg_cmd = '{} --quiet --armor --decrypt -o {} {}'.format(self.gpg.getbin(), output, input)
         invoke.run(gpg_cmd, env=self.gpg.getenv(), hide=False, pty=True)
-
