@@ -38,3 +38,11 @@ class ServerInfo(CertInfo):
     common_name: Optional[str] = None
     dns_name: Optional[str] = None
     alt_dns_name: Optional[str] = None
+
+
+@dataclass
+class IdentityInfo(object):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    salutation: Optional[str] = None

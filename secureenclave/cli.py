@@ -6,6 +6,7 @@ from .secureenclave import SecureEnclave
 from .cli_keycmds import key_list, key_del, key_new, key_trust, key_import
 from .cli_cardcmds import card_status, card_list, card_config, card_import_key
 from .cli_certcmds import cert_newca, cert_newserver
+from .cli_idcmds import id_new, id_list, id_del
 
 __program__ = 'secureenclave'
 __version__ = '0.0.1'
@@ -85,6 +86,19 @@ def cert(ctx, **kwargs):
 
 cert.add_command(cert_newca)
 cert.add_command(cert_newserver)
+
+
+@cli.group(help='Identity related operations')
+@click_loguru.logging_options
+@click_loguru.init_logger(logfile=False)
+@click.pass_context
+def id(ctx, **kwargs):
+    pass
+
+
+id.add_command(id_new)
+id.add_command(id_list)
+id.add_command(id_del)
 
 
 @cli.command(name='purge', help='Removes configuration from this machine, including all trusted keys')
