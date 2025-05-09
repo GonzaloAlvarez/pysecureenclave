@@ -13,7 +13,7 @@ class ConsoleUI(object):
     def __enter__(self):
         return self
 
-    def __exit__(self):
+    def __exit__(self, *args):
         pass
 
     def populate_object(self, object):

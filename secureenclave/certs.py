@@ -68,8 +68,8 @@ class CertManager(object):
             .subject_name(subject)
             .issuer_name(issuer)
             .public_key(key.public_key())
-            .not_valid_before(datetime.datetime.utcnow())
-            .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=valid_days))
+            .not_valid_before(datetime.datetime.now(datetime.UTC))
+            .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=valid_days))
             .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
             .serial_number(x509.random_serial_number())
             .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
@@ -103,8 +103,8 @@ class CertManager(object):
             .issuer_name(ca_cert.subject)
             .public_key(server_key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.utcnow())
-            .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=valid_days))
+            .not_valid_before(datetime.datetime.now(datetime.UTC))
+            .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=valid_days))
             .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
             .add_extension(
                 x509.SubjectAlternativeName([
