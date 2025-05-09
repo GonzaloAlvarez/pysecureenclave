@@ -1,19 +1,19 @@
 """Commands and operations to manage certificates from CLI"""
 import click
-from loguru import logger
 from click_loguru import ClickLoguru
 from .consoleui import ConsoleUI
 from .datamodel import CertInfo, ServerInfo
 from .certs import CertManager
 
 
-__all__=['cert_new']
+__all__ = []  # cert_new was not defined in this file
 
 __program__ = 'secureenclave'
 __version__ = '0.0.1'
 
 log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>\n"
 click_loguru = ClickLoguru(__program__, __version__, stderr_format_func=lambda x: log_format)
+
 
 @click.command(name='newca', help='Create a new Master SSL Certificate Authority')
 @click_loguru.logging_options
@@ -26,6 +26,7 @@ def cert_newca(ctx, **kwargs):
     cert = cert_manager.new_ca_cert(cert_info, pk)
     cert_manager.cert_to_file(cert, "ca.crt")
     cert_manager.pk_to_file(pk, "private_key.pem")
+
 
 @click.command(name='newserver', help='Create a new Master SSL Certificate Authority')
 @click_loguru.logging_options
@@ -42,4 +43,3 @@ def cert_newserver(ctx, ca_cert_file, server_private_key, **kwargs):
     server_cert = cert_manager.new_server_cert(server_info, server_pk, ca_cert, server_pk)
     cert_manager.cert_to_file(server_cert, "server_cert.crt")
     cert_manager.pk_to_file(server_pk, "server_private_key.pem")
- 

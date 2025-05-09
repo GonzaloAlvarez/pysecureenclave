@@ -2,20 +2,25 @@
 
 """The setup script."""
 
+import os
 from setuptools import setup, find_packages
 
-with open('README.rst') as readme_file:
+# Get the directory where setup.py is located
+SETUP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+with open(os.path.join(SETUP_DIR, 'README.rst')) as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
+with open(os.path.join(SETUP_DIR, 'HISTORY.rst')) as history_file:
     history = history_file.read()
 
 def parse_requirements(filename):
     ''' Load requirements from a pip requirements file '''
-    with open(filename, 'r') as fd:
+    filepath = os.path.join(SETUP_DIR, filename)
+    with open(filepath, 'r') as fd:
         lines = []
         for line in fd:
-            line.strip()
+            line = line.strip()
             if line and not line.startswith("#"):
                 lines.append(line)
     return lines

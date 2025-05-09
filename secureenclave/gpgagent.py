@@ -15,6 +15,7 @@ default-cache-ttl 600
 max-cache-ttl 7200
 """
 
+
 class GpgAgent(object):
     def __init__(self, gpg):
         """Initialize GPG agent"""
@@ -45,8 +46,7 @@ class GpgAgent(object):
         """List smartcard readers."""
         gpg_lc_cmd = [self.gpg_connect_agent_bin, '--hex', 'scd getinfo reader_list', '/bye']
         gpg_lc_out = subprocess.run(gpg_lc_cmd, env=self.gpg.getenv(), capture_output=True)
-        return gpg_lc_out.stdout.decode("utf-8").strip() # type:ignore
-
+        return gpg_lc_out.stdout.decode("utf-8").strip()  # type:ignore
 
     def stop(self):
         """Stop gpg-agent."""
@@ -56,4 +56,3 @@ class GpgAgent(object):
             gone, alive = psutil.wait_procs([agentprocess], timeout=3)
             for proc in alive:
                 proc.kill()
-

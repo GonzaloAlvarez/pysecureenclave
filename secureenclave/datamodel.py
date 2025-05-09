@@ -8,6 +8,7 @@ __metaclass__ = type
 from dataclasses import dataclass
 from typing import Optional
 
+
 @dataclass
 class CardInfo(object):
     first_name: Optional[str] = None
@@ -25,6 +26,7 @@ class CertInfo(object):
     owner: Optional[str] = None
     organizational_unit: Optional[str] = None
     common_name: Optional[str] = None
+
 
 @dataclass
 class ServerInfo(CertInfo):

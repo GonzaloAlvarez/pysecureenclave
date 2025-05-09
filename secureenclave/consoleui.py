@@ -8,6 +8,7 @@ __metaclass__ = type
 from dataclasses import fields
 from bullet import Input, VerticalPrompt
 
+
 class ConsoleUI(object):
     def __enter__(self):
         return self
@@ -16,9 +17,9 @@ class ConsoleUI(object):
         pass
 
     def populate_object(self, object):
-        inputs=[]
+        inputs = []
         for attr in fields(type(object)):
-            inputs.append(Input('{}: '.format(attr.name.replace("_"," ").title())))
+            inputs.append(Input('{}: '.format(attr.name.replace("_", " ").title())))
 
         values = VerticalPrompt(inputs, spacing=0).launch()
 
@@ -26,4 +27,3 @@ class ConsoleUI(object):
             setattr(object, attr.name, values[i][1])
 
         return object
-

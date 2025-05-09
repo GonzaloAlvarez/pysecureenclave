@@ -5,7 +5,8 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-import os, sys
+import os
+import sys
 import shutil
 import invoke
 import re
@@ -39,6 +40,13 @@ __gpg_card_edit__ = """admin
 quit
 """
 
+__gpg_card_key_edit__ = """key {}
+keytocard
+{}
+save
+"""
+
+
 @dataclass
 class GpgKey:
     uid: str
@@ -57,6 +65,7 @@ class GpgKey:
 
     def __radd__(self, other):
         return other + str(self)
+
 
 class Gpg(object):
     def __init__(self, homepath):
@@ -86,10 +95,10 @@ class Gpg(object):
         return self.gpg_bin
 
     def get_keys(self):
-        keys : List[GpgKey] = []
+        keys: List[GpgKey] = []
         gpg_cmd = '{} --quiet --list-keys'.format(self.getbin())
         output = invoke.run(gpg_cmd, env=self.getenv(), pty=True, hide=True)
-        raw = output.stdout # type: ignore
+        raw = output.stdout  # type: ignore
         if 'uid  ' in raw:
             logger.debug('There is at least a uid in the keylist')
             uid = fingerprint = pub = trust = None
@@ -100,7 +109,7 @@ class Gpg(object):
                     uid = match.group(1).strip()
                     if submatch := re.search("(\\[[ a-z]*\\]) (.*)", uid):
                         uid = submatch.group(2).strip()
-                        trust = submatch.group(1).replace("[", "").replace("]","").strip()
+                        trust = submatch.group(1).replace("[", "").replace("]", "").strip()
                 if match := re.search('pub [ ]*([a-zA-Z0-9\\/]*)', line):
                     pub = match.group(1)
                 if pub and fingerprint and uid and trust:
@@ -109,9 +118,14 @@ class Gpg(object):
                     pub = fingerprint = uid = trust = None
         return keys
 
-
     def card_edit(self, attribute, value):
         __content__ = __gpg_card_edit__.format(attribute, value)
         gpg_cmd = '{} --quiet --card-edit --expert --batch --display-charset utf-8 --no-tty --command-fd 0'.format(self.getbin())
         invoke.run(gpg_cmd, env=self.getenv(), hide=True, in_stream=StringIO(__content__))
 
+    def card_key_edit(self, key_id, key_number, slot_number):
+        __content__ = __gpg_card_key_edit__.format(key_number, slot_number)
+        # gpg_cmd = '{} --expert --display-charset utf-8 --edit-key {}'.format(self.getbin(), key_id)
+        gpg_cmd = '{} --expert --batch --display-charset utf-8 --no-tty --command-fd 0 --edit-key {}'.format(self.getbin(), key_id)
+        invoke.run(gpg_cmd, env=self.getenv(), hide=True, in_stream=StringIO(__content__))
+        # invoke.run(gpg_cmd, env=self.getenv(), pty=True)
