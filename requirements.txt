@@ -7,6 +7,3 @@ psutil==6.0.0
 bullet==2.2.0
 yubikey-manager==5.5.1
 pyscard==2.1.0
-gnupg==2.3.1
-python-gnupg==0.5.4
-gpgkeys==2.2

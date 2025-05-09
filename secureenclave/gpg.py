@@ -125,7 +125,5 @@ class Gpg(object):
 
     def card_key_edit(self, key_id, key_number, slot_number):
         __content__ = __gpg_card_key_edit__.format(key_number, slot_number)
-        # gpg_cmd = '{} --expert --display-charset utf-8 --edit-key {}'.format(self.getbin(), key_id)
         gpg_cmd = '{} --expert --batch --display-charset utf-8 --no-tty --command-fd 0 --edit-key {}'.format(self.getbin(), key_id)
         invoke.run(gpg_cmd, env=self.getenv(), hide=True, in_stream=StringIO(__content__))
-        # invoke.run(gpg_cmd, env=self.getenv(), pty=True)

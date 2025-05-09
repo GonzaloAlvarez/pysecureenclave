@@ -6,7 +6,7 @@ from .datamodel import CertInfo, ServerInfo
 from .certs import CertManager
 
 
-__all__ = []  # cert_new was not defined in this file
+__all__ = []
 
 __program__ = 'secureenclave'
 __version__ = '0.0.1'

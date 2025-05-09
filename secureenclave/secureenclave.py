@@ -60,7 +60,7 @@ class SecureEnclave(object):
                 logger.debug('Failed to match. No secure key in card')
                 logger.debug(result.stdout)  # type: ignore
             return True
-        except Exception:  # PEP 8: E722 do not use bare 'except'
+        except Exception:
             logger.debug('Card failed to be recognized')
             return False
 
