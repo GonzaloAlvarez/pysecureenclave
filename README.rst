@@ -15,13 +15,13 @@ This tool is aimed to enable managing secrets and keys in a secure way, with the
 Key Management
 ++++++++++++++
 
-** List Keys **
+**List Keys**
 
 .. code-block:: bash
 
     $ pysecureenclave key list
 
-** Create new Key **
+**Create new Key**
 
 .. code-block:: bash
 
@@ -30,13 +30,13 @@ Key Management
 Card Management
 ++++++++++++++
 
-** Configure Card **
+**Configure Card**
 
 .. code-block:: shell
 
     $ pysecureenclave card config
 
-** Move key to card **
+**Move key to card**
 
 .. code-block:: shell
 
