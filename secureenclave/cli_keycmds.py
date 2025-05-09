@@ -1,9 +1,11 @@
 """Console scripts for key handling"""
 import click
 from click_loguru import ClickLoguru
+from loguru import logger
 from .secureenclave import SecureEnclave
+from .cui_keys import ConsoleUI_Keys
 
-__all__ = ['key_list', 'key_del', 'key_new', 'key_trust']
+__all__ = ['key_list', 'key_del', 'key_new', 'key_trust', 'key_import']
 
 __program__ = 'secureenclave'
 __version__ = '0.0.1'
@@ -37,7 +39,14 @@ def key_import(ctx, input_file, **kwargs):
 @click.pass_context
 def key_new(ctx, **kwargs):
     with SecureEnclave() as secure_enclave:
-        secure_enclave.new_key()
+        console_ui_keys = ConsoleUI_Keys()
+        new_key_uid, passphrase = console_ui_keys.prompt_for_new_key_details(secure_enclave)
+
+        if new_key_uid is not None:
+            if not secure_enclave.new_key(new_key_uid, passphrase):
+                logger.error("Key creation process failed in the backend.")
+        else:
+            logger.info("Key creation process was cancelled or input was invalid.")
 
 
 @click.command(name='del', help='Delete Key')

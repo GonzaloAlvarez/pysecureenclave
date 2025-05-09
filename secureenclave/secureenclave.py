@@ -14,11 +14,12 @@ import uuid
 from loguru import logger
 from pathlib import Path
 from io import StringIO
-from bullet import YesNo, Input, VerticalPrompt, Bullet, Password
+from bullet import YesNo, Bullet
 
-from .gpgagent import GpgAgent
 from .gpg import Gpg
+from .gpgagent import GpgAgent
 from .smartcard import SmartCard
+
 
 __author__ = 'Gonzalo Alvarez'
 __program__ = 'SecureEnclave'
@@ -213,34 +214,55 @@ class SecureEnclave(object):
         gpg_cmd = '{} --import {}'.format(self.gpg.getbin(), filename)
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
 
-    def new_key(self):
-        prompts = VerticalPrompt([
-            Input("Key Owner Full name: "),
-            Input("Key Owner Email address: "),
-            Input("Key Name: "),
-            Password("Key Password: "),
-            Password("Confirm Key Password: ")], spacing=0).launch()
-        if prompts[3][1] != prompts[4][1]:
-            logger.error("Passwords do not match. Try again.")
+    def new_key(self, new_key_uid, passphrase):
+        """
+        Creates a new GPG key with the provided UID and passphrase.
+        Handles the GPG command execution for key and subkey generation.
+
+        Args:
+            new_key_uid: The user ID string for the new key.
+            passphrase: The passphrase for the new key.
+
+        Returns:
+            True if key creation was successful, False otherwise.
+        """
+        if not new_key_uid:
+            logger.error("New key UID not provided.")
             return False
-        new_key_uid = f'{prompts[0][1]} ({prompts[2][1]}) <{prompts[1][1]}>'
-        passphrase = prompts[3][1]
-        logger.info("Creating new key")
+
+        logger.info(f"Creating new GPG key for UID: {new_key_uid}")
         gpg_cmd = '{} -q --batch --passphrase {} --quick-generate-key "{}" rsa4096 cert never'.format(self.gpg.getbin(), passphrase, new_key_uid)
         result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
         if result.exited != 0:  # type:ignore
-            logger.error("Could not create the master key properly")
+            logger.error("Could not create the master GPG key properly.")
+            logger.error(f"GPG command output: {result.stdout} {result.stderr}")
             return False
-        new_key = next(iter([x for x in self.gpg.get_keys() if x.uid == new_key_uid]))
-        logger.debug(f'New key with fingerprint {new_key.fingerprint}')
-        logger.info('New key created. Creating its subkeys')
+
+        created_key = None
+        for key_attempt in self.gpg.get_keys():
+            if new_key_uid in key_attempt.uid:
+                created_key = key_attempt
+                break
+
+        if not created_key:
+            logger.error(f"Failed to find the newly created GPG key with UID part: {new_key_uid}. Please check GPG manually.")
+            available_keys_uids = [k.uid for k in self.gpg.get_keys()]
+            logger.debug(f"Available key UIDs after creation attempt: {available_keys_uids}")
+            return False
+
+        logger.debug(f'New GPG key created with fingerprint {created_key.fingerprint}')
+        logger.info('New GPG key created. Proceeding to create its subkeys.')
         for subkey_type in ['sign', 'encrypt', 'auth']:
-            gpg_cmd = '{} -q --batch --pinentry-mode=loopback --passphrase {} --quick-add-key "{}" rsa4096 "{}" "2y"'.format(self.gpg.getbin(), passphrase, new_key.fingerprint, subkey_type)
+            logger.info(f"Creating {subkey_type} subkey...")
+            gpg_cmd = '{} -q --batch --pinentry-mode=loopback --passphrase {} --quick-add-key "{}" rsa4096 "{}" "2y"'.format(self.gpg.getbin(), passphrase, created_key.fingerprint, subkey_type)
             result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
             if result.exited != 0:  # type:ignore
-                logger.error(f'Could not create {subkey_type} subkey properly')
+                logger.error(f'Could not create {subkey_type} subkey properly.')
+                logger.error(f"GPG command output: {result.stdout} {result.stderr}")
                 return False
-        logger.info('Key creation completed. Use "key list" to explore')
+            logger.success(f'{subkey_type.capitalize()} subkey created successfully.')
+        logger.success('GPG Key creation completed, including all subkeys. Use "key list" to explore.')
+        return True
 
     def del_key(self):
         keys = self.gpg.get_keys()
