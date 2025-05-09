@@ -14,11 +14,12 @@ import uuid
 from loguru import logger
 from pathlib import Path
 from io import StringIO
-from bullet import YesNo, Input, VerticalPrompt, Bullet, Password
+from bullet import YesNo, Input, VerticalPrompt, Bullet, Password # Input, Password, VerticalPrompt, Bullet, YesNo are used
 
-from .gpgagent import GpgAgent
 from .gpg import Gpg
 from .smartcard import SmartCard
+from .datamodel import IdentityInfo # Added import
+from .consoleui import ConsoleUI # Added import
 
 __author__ = 'Gonzalo Alvarez'
 __program__ = 'SecureEnclave'
@@ -214,31 +215,103 @@ class SecureEnclave(object):
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
 
     def new_key(self):
-        prompts = VerticalPrompt([
-            Input("Key Owner Full name: "),
-            Input("Key Owner Email address: "),
-            Input("Key Name: "),
+        console_ui = ConsoleUI()
+        identity_info = None
+
+        choice_prompt = Bullet(
+            prompt="\nHow do you want to associate this key with an identity?",
+            choices=["Use an existing identity", "Create a new identity"],
+            bullet=">",
+            indent=0,
+            align=2,
+            margin=2,
+            pad_right=5
+        )
+        identity_choice_str = choice_prompt.launch()
+
+        if identity_choice_str == "Use an existing identity":
+            identities = self.list_identities()
+            if not identities:
+                logger.info("No existing identities found.")
+                create_new_q = YesNo("Would you like to create a new identity instead? ", default='y')
+                if create_new_q.launch():
+                    identity_choice_str = "Create a new identity"  # Fall through to creation
+                else:
+                    logger.info("Key creation cancelled as no identity was selected or created.")
+                    return False
+            else:
+                selected_identity_dict = console_ui.select_identity(identities, "Select an identity for the new key:")
+                if selected_identity_dict:
+                    identity_info = IdentityInfo(
+                        first_name=selected_identity_dict['first_name'],
+                        last_name=selected_identity_dict['last_name'],
+                        email=selected_identity_dict['email'],
+                        salutation=selected_identity_dict.get('salutation', '')
+                    )
+                else:
+                    logger.info("No identity selected. Key creation cancelled.")
+                    return False
+        
+        if identity_choice_str == "Create a new identity": # Handles fall-through and direct choice
+            logger.info("Creating a new identity for the key.")
+            new_identity_obj = IdentityInfo() 
+            identity_info = console_ui.populate_object(new_identity_obj)
+            self.save_identity(identity_info)
+
+        if not identity_info:
+            logger.info("Key creation aborted as no identity was specified.") # More generic message if identity_choice_str was None
+            return False
+
+        owner_full_name = f"{identity_info.first_name} {identity_info.last_name}"
+        owner_email = identity_info.email
+
+        key_prompts = VerticalPrompt([
+            Input("Key Name (e.g., Work Laptop Key): "),
             Password("Key Password: "),
-            Password("Confirm Key Password: ")], spacing=0).launch()
-        if prompts[3][1] != prompts[4][1]:
+            Password("Confirm Key Password: ")
+        ], spacing=0).launch()
+
+        key_name_desc = key_prompts[0][1]
+        passphrase = key_prompts[1][1]
+        confirm_passphrase = key_prompts[2][1]
+
+        if passphrase != confirm_passphrase:
             logger.error("Passwords do not match. Try again.")
             return False
-        new_key_uid = f'{prompts[0][1]} ({prompts[2][1]}) <{prompts[1][1]}>'
-        passphrase = prompts[3][1]
+
+        new_key_uid = f'{owner_full_name} ({key_name_desc}) <{owner_email}>'
+        
         logger.info("Creating new key")
         gpg_cmd = '{} -q --batch --passphrase {} --quick-generate-key "{}" rsa4096 cert never'.format(self.gpg.getbin(), passphrase, new_key_uid)
         result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
         if result.exited != 0:  # type:ignore
             logger.error("Could not create the master key properly")
+            logger.error(f"GPG command output: {result.stdout} {result.stderr}")
             return False
-        new_key = next(iter([x for x in self.gpg.get_keys() if x.uid == new_key_uid]))
-        logger.debug(f'New key with fingerprint {new_key.fingerprint}')
+        
+        # Attempt to find the newly created key. This might need adjustment if uid format changes subtly.
+        # It's safer to parse GPG output for the fingerprint if possible, but this is existing logic.
+        created_key = None
+        for key_attempt in self.gpg.get_keys(): # Refresh keys after creation
+            if new_key_uid in key_attempt.uid : # Check if new_key_uid is part of the key's uid string
+                created_key = key_attempt
+                break
+        
+        if not created_key:
+            logger.error(f"Failed to find the newly created key with UID part: {new_key_uid}. Please check GPG manually.")
+            # Log available keys for debugging
+            available_keys_uids = [k.uid for k in self.gpg.get_keys()]
+            logger.debug(f"Available key UIDs after creation attempt: {available_keys_uids}")
+            return False
+
+        logger.debug(f'New key with fingerprint {created_key.fingerprint}')
         logger.info('New key created. Creating its subkeys')
         for subkey_type in ['sign', 'encrypt', 'auth']:
-            gpg_cmd = '{} -q --batch --pinentry-mode=loopback --passphrase {} --quick-add-key "{}" rsa4096 "{}" "2y"'.format(self.gpg.getbin(), passphrase, new_key.fingerprint, subkey_type)
+            gpg_cmd = '{} -q --batch --pinentry-mode=loopback --passphrase {} --quick-add-key "{}" rsa4096 "{}" "2y"'.format(self.gpg.getbin(), passphrase, created_key.fingerprint, subkey_type)
             result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
             if result.exited != 0:  # type:ignore
                 logger.error(f'Could not create {subkey_type} subkey properly')
+                logger.error(f"GPG command output: {result.stdout} {result.stderr}")
                 return False
         logger.info('Key creation completed. Use "key list" to explore')
 

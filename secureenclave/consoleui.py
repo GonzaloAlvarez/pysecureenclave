@@ -6,7 +6,8 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 from dataclasses import fields
-from bullet import Input, VerticalPrompt
+from bullet import Input, VerticalPrompt, Bullet
+from loguru import logger
 
 
 class ConsoleUI(object):
@@ -27,3 +28,36 @@ class ConsoleUI(object):
             setattr(object, attr.name, values[i][1])
 
         return object
+
+    def select_identity(self, identities, prompt_message="Select an identity: "):
+        """
+        Prompts the user to select an identity from a list.
+
+        Args:
+            identities: A list of identity dictionaries.
+            prompt_message: The message to display to the user.
+
+        Returns:
+            The selected identity dictionary, or None if no selection is made or no identities are available.
+        """
+        if not identities:
+            logger.info("No identities available to select.")
+            return None
+
+        choices = [f"{identity['first_name']} {identity['last_name']} ({identity['email']})" for identity in identities]
+
+        selected_display_name = Bullet(
+            prompt=f"\n{prompt_message}",
+            choices=choices,
+            indent=0,
+            align=2,
+            margin=2,
+            bullet=">",
+            pad_right=5
+        ).launch()
+
+        if selected_display_name:
+            for identity in identities:
+                if f"{identity['first_name']} {identity['last_name']} ({identity['email']})" == selected_display_name:
+                    return identity
+        return None

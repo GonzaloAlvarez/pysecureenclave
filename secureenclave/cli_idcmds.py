@@ -2,7 +2,7 @@
 import click
 from click_loguru import ClickLoguru
 from loguru import logger
-from bullet import Bullet, YesNo
+from bullet import YesNo # Bullet is no longer directly used here
 from .consoleui import ConsoleUI
 from .datamodel import IdentityInfo
 from .secureenclave import SecureEnclave
@@ -60,24 +60,14 @@ def id_del(ctx, **kwargs):
             logger.info("No identities found to delete.")
             return
 
-        choices = [f"{identity['first_name']} {identity['last_name']} ({identity['email']})" for identity in identities]
+        console_ui = ConsoleUI()
+        selected_identity = console_ui.select_identity(identities, prompt_message="Select an identity to delete: ")
 
-        identity_to_delete_display = Bullet(
-            prompt="\nSelect an identity to delete: ",
-            choices=choices,
-            indent=0,
-            align=2,
-            margin=2,
-            bullet=">",
-            pad_right=5
-        ).launch()
+        if not selected_identity:
+            logger.info("Identity deletion cancelled or no identity selected.")
+            return
 
-        selected_identity = None
-        for identity in identities:
-            if f"{identity['first_name']} {identity['last_name']} ({identity['email']})" == identity_to_delete_display:
-                selected_identity = identity
-                break
-
+        identity_to_delete_display = f"{selected_identity['first_name']} {selected_identity['last_name']} ({selected_identity['email']})"
         confirm_prompt = YesNo(f"Are you sure you want to delete the identity for {identity_to_delete_display}? ", default='n')
         if confirm_prompt.launch():
             secure_enclave.delete_identity(selected_identity['id'])
