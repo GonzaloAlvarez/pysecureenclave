@@ -61,7 +61,7 @@ def id_del(ctx, **kwargs):
             return
 
         choices = [f"{identity['first_name']} {identity['last_name']} ({identity['email']})" for identity in identities]
-        
+
         identity_to_delete_display = Bullet(
             prompt="\nSelect an identity to delete: ",
             choices=choices,
@@ -77,10 +77,6 @@ def id_del(ctx, **kwargs):
             if f"{identity['first_name']} {identity['last_name']} ({identity['email']})" == identity_to_delete_display:
                 selected_identity = identity
                 break
-        
-        if not selected_identity:
-            logger.error("Invalid selection.") # Should not happen if Bullet returns a valid choice
-            return
 
         confirm_prompt = YesNo(f"Are you sure you want to delete the identity for {identity_to_delete_display}? ", default='n')
         if confirm_prompt.launch():

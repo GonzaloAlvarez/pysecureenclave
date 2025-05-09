@@ -95,7 +95,7 @@ class SecureEnclave(object):
         """Retrieves all identities from the database."""
         try:
             conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row # Access columns by name
+            conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("SELECT id, first_name, last_name, email, salutation FROM identities")
             rows = cursor.fetchall()
