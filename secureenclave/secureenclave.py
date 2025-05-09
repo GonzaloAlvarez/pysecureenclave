@@ -14,12 +14,11 @@ import uuid
 from loguru import logger
 from pathlib import Path
 from io import StringIO
-from bullet import YesNo, Input, VerticalPrompt, Bullet, Password # Input, Password, VerticalPrompt, Bullet, YesNo are used
+from bullet import YesNo, Input, VerticalPrompt, Bullet, Password
 
 from .gpg import Gpg
 from .gpgagent import GpgAgent
 from .smartcard import SmartCard
-# IdentityInfo and ConsoleUI are no longer directly used by new_key, but kept for other methods.
 from .datamodel import IdentityInfo
 from .consoleui import ConsoleUI
 
