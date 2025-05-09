@@ -12,9 +12,10 @@ import invoke
 import re
 from io import StringIO
 
-from dataclasses import dataclass
 from loguru import logger
 from typing import List
+
+from secureenclave.datamodel import GpgKey
 
 
 __gpg_conf__: str = """use-agent
@@ -45,26 +46,6 @@ keytocard
 {}
 save
 """
-
-
-@dataclass
-class GpgKey:
-    uid: str
-    pub: str
-    fingerprint: str
-    trust: str
-
-    def __str__(self):
-        return self.uid.strip()
-
-    def __len__(self):
-        return len(self.uid.strip())
-
-    def __add__(self, other):
-        return str(self) + other
-
-    def __radd__(self, other):
-        return other + str(self)
 
 
 class Gpg(object):
