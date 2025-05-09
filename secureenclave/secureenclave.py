@@ -17,6 +17,7 @@ from io import StringIO
 from bullet import YesNo, Input, VerticalPrompt, Bullet, Password # Input, Password, VerticalPrompt, Bullet, YesNo are used
 
 from .gpg import Gpg
+from .gpgagent import GpgAgent # Added import
 from .smartcard import SmartCard
 from .datamodel import IdentityInfo # Added import
 from .consoleui import ConsoleUI # Added import
