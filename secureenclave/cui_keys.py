@@ -28,49 +28,80 @@ class ConsoleUI_Keys(object):
             A tuple (new_key_uid, passphrase) if successful, or (None, None) if cancelled or an error occurs.
         """
         identity_info = None
+        should_create_new_identity = False
 
-        choice_prompt = Bullet(
-            prompt="\nHow do you want to associate this key with an identity?",
-            choices=["Use an existing identity", "Create a new identity"],
-            bullet=">",
-            indent=0,
-            align=2,
-            margin=2,
-            pad_right=5
-        )
-        identity_choice_str = choice_prompt.launch()
+        identities = secure_enclave.list_identities()
 
-        if identity_choice_str == "Use an existing identity":
-            identities = secure_enclave.list_identities()
-            if not identities:
-                logger.info("No existing identities found.")
-                create_new_q = YesNo("Would you like to create a new identity instead? ", default='y')
-                if create_new_q.launch():
-                    identity_choice_str = "Create a new identity"  # Fall through to creation
-                else:
-                    logger.info("Key creation cancelled as no identity was selected or created.")
-                    return None, None
+        if not identities:
+            logger.info("No existing identities found.")
+            create_new_q = YesNo("Would you like to create a new identity? ", default='y')
+            if create_new_q.launch():
+                should_create_new_identity = True
             else:
-                selected_identity_dict = self.console_ui.select_identity(identities, "Select an identity for the new key:")
-                if selected_identity_dict:
-                    identity_info = IdentityInfo(
-                        first_name=selected_identity_dict['first_name'],
-                        last_name=selected_identity_dict['last_name'],
-                        email=selected_identity_dict['email'],
-                        salutation=selected_identity_dict.get('salutation', '')
-                    )
-                else:
-                    logger.info("No identity selected. Key creation cancelled.")
+                logger.info("Key creation cancelled as no identity was available or created.")
+                return None, None
+        else:
+            # Identities exist, present them with an option to create a new one
+            identity_display_strings = [
+                f"{identity['first_name']} {identity['last_name']} <{identity['email']}>"
+                for identity in identities
+            ]
+            
+            CREATE_NEW_ACTION_LABEL = "Create a new identity..."
+            bullet_choices = identity_display_strings + [CREATE_NEW_ACTION_LABEL]
+
+            selection_prompt = Bullet(
+                prompt="\nSelect an identity for the new key, or create a new one:",
+                choices=bullet_choices,
+                bullet=">",
+                indent=0,
+                align=2,
+                margin=2,
+                pad_right=5
+            )
+            selected_choice_str = selection_prompt.launch()
+
+            if selected_choice_str is None: # User cancelled the prompt (e.g., Ctrl+C)
+                logger.info("Identity selection cancelled. Key creation aborted.")
+                return None, None
+
+            if selected_choice_str == CREATE_NEW_ACTION_LABEL:
+                should_create_new_identity = True
+            else:
+                # An existing identity was chosen. Find the corresponding dict by index.
+                try:
+                    selected_index = bullet_choices.index(selected_choice_str)
+                    # Ensure the index is within the bounds of the original identities list
+                    if selected_index < len(identities):
+                        selected_identity_dict = identities[selected_index]
+                        identity_info = IdentityInfo(
+                            first_name=selected_identity_dict['first_name'],
+                            last_name=selected_identity_dict['last_name'],
+                            email=selected_identity_dict['email'],
+                            salutation=selected_identity_dict.get('salutation', '')
+                        )
+                    else:
+                        # This should not be reached if logic is correct
+                        logger.error("Internal error: Selected choice index out of bounds. Key creation cancelled.")
+                        return None, None
+                except ValueError:
+                     # Should not happen if Bullet returns a string from its choices
+                    logger.error(f"Internal error: Selected choice '{selected_choice_str}' not in provided choices. Key creation cancelled.")
                     return None, None
         
-        if identity_choice_str == "Create a new identity":  # Handles fall-through and direct choice
+        if should_create_new_identity:
             logger.info("Creating a new identity for the key.")
             new_identity_obj = IdentityInfo()
-            identity_info = self.console_ui.populate_object(new_identity_obj)
-            secure_enclave.save_identity(identity_info)
+            created_identity = self.console_ui.populate_object(new_identity_obj)
+            if created_identity:
+                identity_info = created_identity
+                secure_enclave.save_identity(identity_info)
+            else:
+                logger.info("Identity creation cancelled by user. Key creation aborted.")
+                return None, None
 
-        if not identity_info:
-            logger.info("Key creation aborted as no identity was specified.")
+        if not identity_info: # Final check
+            logger.info("Key creation aborted as no identity was specified or created.")
             return None, None
 
         owner_full_name = f"{identity_info.first_name} {identity_info.last_name}"
