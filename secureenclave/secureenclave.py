@@ -242,9 +242,6 @@ class SecureEnclave(object):
             return False
         
         created_key = None
-        # Refresh keys and find the newly created one
-        # GPG's --quick-generate-key output isn't easily parsable for the fingerprint directly in a batch mode without complex parsing.
-        # Relying on matching the UID is a common approach.
         for key_attempt in self.gpg.get_keys(): 
             if new_key_uid in key_attempt.uid:
                 created_key = key_attempt
@@ -265,7 +262,6 @@ class SecureEnclave(object):
             if result.exited != 0:  # type:ignore
                 logger.error(f'Could not create {subkey_type} subkey properly.')
                 logger.error(f"GPG command output: {result.stdout} {result.stderr}")
-                # Consider if we should attempt to clean up the master key if a subkey fails. For now, it doesn't.
                 return False
             logger.success(f'{subkey_type.capitalize()} subkey created successfully.')
         logger.success('GPG Key creation completed, including all subkeys. Use "key list" to explore.')

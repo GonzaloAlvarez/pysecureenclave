@@ -42,10 +42,9 @@ def key_new(ctx, **kwargs):
         console_ui_keys = ConsoleUI_Keys()
         new_key_uid, passphrase = console_ui_keys.prompt_for_new_key_details(secure_enclave)
 
-        if new_key_uid is not None and passphrase is not None: # Check for None explicitly
+        if new_key_uid is not None:
             if not secure_enclave.new_key(new_key_uid, passphrase):
                 logger.error("Key creation process failed in the backend.")
-            # Success messages are handled within secure_enclave.new_key()
         else:
             logger.info("Key creation process was cancelled or input was invalid.")
 
