@@ -2,7 +2,7 @@
 import click
 from click_loguru import ClickLoguru
 from loguru import logger
-from bullet import YesNo # Bullet is no longer directly used here
+from bullet import YesNo
 from .consoleui import ConsoleUI
 from .datamodel import IdentityInfo
 from .secureenclave import SecureEnclave
@@ -24,7 +24,6 @@ click_loguru = ClickLoguru(__program__, __version__, stderr_format_func=lambda x
 def id_new(ctx, **kwargs):
     """Creates a new identity and stores it."""
     identity_info = ConsoleUI().populate_object(IdentityInfo())
-    # SecureEnclave instantiation will handle DB initialization if needed
     with SecureEnclave() as secure_enclave:
         secure_enclave.save_identity(identity_info)
     logger.info(f"Identity for {identity_info.first_name} {identity_info.last_name} created.")

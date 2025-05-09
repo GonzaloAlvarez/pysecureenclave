@@ -1,11 +1,11 @@
 """Console scripts for key handling"""
 import click
 from click_loguru import ClickLoguru
-from loguru import logger # Added logger for messages
+from loguru import logger
 from .secureenclave import SecureEnclave
-from .cui_keys import ConsoleUI_Keys # Added import
+from .cui_keys import ConsoleUI_Keys
 
-__all__ = ['key_list', 'key_del', 'key_new', 'key_trust', 'key_import'] # Added key_import
+__all__ = ['key_list', 'key_del', 'key_new', 'key_trust', 'key_import']
 
 __program__ = 'secureenclave'
 __version__ = '0.0.1'
