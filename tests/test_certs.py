@@ -85,8 +85,8 @@ def test_new_ca_cert(cert_manager, sample_cert_info):
     assert basic_constraints.ca is True
     assert basic_constraints.path_length == 1
 
-    assert ca_cert.not_valid_before.date() == datetime.datetime.utcnow().date()
-    assert ca_cert.not_valid_after.date() == (datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)).date()
+    assert ca_cert.not_valid_before_utc.date() == datetime.datetime.now(datetime.UTC).date()
+    assert ca_cert.not_valid_after_utc.date() == (datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=valid_days)).date()
 
 
 def test_new_server_cert(cert_manager, sample_server_info, sample_cert_info):
@@ -118,8 +118,8 @@ def test_new_server_cert(cert_manager, sample_server_info, sample_cert_info):
     assert x509.oid.ExtendedKeyUsageOID.SERVER_AUTH in eku_extension
     assert x509.oid.ExtendedKeyUsageOID.CLIENT_AUTH in eku_extension
 
-    assert server_cert.not_valid_before.date() == datetime.datetime.utcnow().date()
-    assert server_cert.not_valid_after.date() == (datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)).date()
+    assert server_cert.not_valid_before_utc.date() == datetime.datetime.now(datetime.UTC).date()
+    assert server_cert.not_valid_after_utc.date() == (datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=valid_days)).date()
 
 
 def test_pk_to_file_and_pk_from_file(cert_manager, tmp_path):
