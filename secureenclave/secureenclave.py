@@ -278,24 +278,23 @@ class SecureEnclave(object):
         logger.info(f"Attempting to delete secret key for {selected.fingerprint}...")
         gpg_cmd_secret = '{} -q --batch --delete-secret-key {}'.format(self.gpg.getbin(), selected.fingerprint)
         result_secret = invoke.run(gpg_cmd_secret, env=self.gpg.getenv(), pty=True, hide=True)
-        if result_secret.ok: # type: ignore
+        if result_secret.ok:  # type: ignore
             logger.success(f"Secret key for {selected.fingerprint} deleted successfully.")
         else:
             logger.error(f"Failed to delete secret key for {selected.fingerprint}.")
-            logger.debug(f"Output: {result_secret.stdout}") # type: ignore
-            logger.debug(f"Error: {result_secret.stderr}") # type: ignore
-
+            logger.debug(f"Output: {result_secret.stdout}")  # type: ignore
+            logger.debug(f"Error: {result_secret.stderr}")  # type: ignore
 
         if not secret_only:
             logger.info(f"Attempting to delete public key for {selected.fingerprint}...")
             gpg_cmd_public = '{} -q --batch --delete-key {}'.format(self.gpg.getbin(), selected.fingerprint)
             result_public = invoke.run(gpg_cmd_public, env=self.gpg.getenv(), pty=True, hide=True)
-            if result_public.ok: # type: ignore
+            if result_public.ok:  # type: ignore
                 logger.success(f"Public key for {selected.fingerprint} deleted successfully.")
             else:
                 logger.error(f"Failed to delete public key for {selected.fingerprint}.")
-                logger.debug(f"Output: {result_public.stdout}") # type: ignore
-                logger.debug(f"Error: {result_public.stderr}") # type: ignore
+                logger.debug(f"Output: {result_public.stdout}")  # type: ignore
+                logger.debug(f"Error: {result_public.stderr}")  # type: ignore
         else:
             logger.info(f"Skipping public key deletion for {selected.fingerprint} as per --secret flag.")
 
