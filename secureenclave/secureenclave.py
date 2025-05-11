@@ -204,7 +204,7 @@ class SecureEnclave(object):
     def list_keys(self):
         """List keys on smartcard"""
         logger.info('Public keys')
-        gpg_cmd = '{} --list-keys --with-keygrip'.format(self.gpg.getbin())
+        gpg_cmd = '{} --list-keys --with-colons --fixed-list-mode --with-fingerprint --with-keygrip'.format(self.gpg.getbin())
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
         logger.info('Private keys')
         gpg_cmd = '{} --list-secret-keys'.format(self.gpg.getbin())
@@ -264,13 +264,39 @@ class SecureEnclave(object):
         logger.success('GPG Key creation completed, including all subkeys. Use "key list" to explore.')
         return True
 
-    def del_key(self):
+    def del_key(self, secret_only=False):
         keys = self.gpg.get_keys()
+        if not keys:
+            logger.info("No keys available to delete.")
+            return
+
         selected = Bullet('Select which key to delete: ', keys).launch()  # type:ignore
-        gpg_cmd = '{} -q --batch --delete-secret-key {}'.format(self.gpg.getbin(), selected.fingerprint)
-        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
-        gpg_cmd = '{} -q --batch --delete-key {}'.format(self.gpg.getbin(), selected.fingerprint)
-        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
+        if not selected:
+            logger.info("Key deletion cancelled.")
+            return
+
+        logger.info(f"Attempting to delete secret key for {selected.fingerprint}...")
+        gpg_cmd_secret = '{} -q --batch --delete-secret-key {}'.format(self.gpg.getbin(), selected.fingerprint)
+        result_secret = invoke.run(gpg_cmd_secret, env=self.gpg.getenv(), pty=True, hide=True)
+        if result_secret.ok:  # type: ignore
+            logger.success(f"Secret key for {selected.fingerprint} deleted successfully.")
+        else:
+            logger.error(f"Failed to delete secret key for {selected.fingerprint}.")
+            logger.debug(f"Output: {result_secret.stdout}")  # type: ignore
+            logger.debug(f"Error: {result_secret.stderr}")  # type: ignore
+
+        if not secret_only:
+            logger.info(f"Attempting to delete public key for {selected.fingerprint}...")
+            gpg_cmd_public = '{} -q --batch --delete-key {}'.format(self.gpg.getbin(), selected.fingerprint)
+            result_public = invoke.run(gpg_cmd_public, env=self.gpg.getenv(), pty=True, hide=True)
+            if result_public.ok:  # type: ignore
+                logger.success(f"Public key for {selected.fingerprint} deleted successfully.")
+            else:
+                logger.error(f"Failed to delete public key for {selected.fingerprint}.")
+                logger.debug(f"Output: {result_public.stdout}")  # type: ignore
+                logger.debug(f"Error: {result_public.stderr}")  # type: ignore
+        else:
+            logger.info(f"Skipping public key deletion for {selected.fingerprint} as per --secret flag.")
 
     def encrypt(self, input, output):
         key_list = self.gpg.get_keys()
