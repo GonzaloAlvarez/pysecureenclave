@@ -126,15 +126,6 @@ class SecureEnclave(object):
         for key_number in 1, 2, 3:
             self.gpg.card_key_edit(selected.fingerprint, key_number, key_number)
 
-    def list_keys(self):
-        """List keys on smartcard"""
-        logger.info('Public keys')
-        gpg_cmd = '{} --list-keys --with-colons --fixed-list-mode --with-fingerprint --with-keygrip'.format(self.gpg.getbin())
-        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
-        logger.info('Private keys')
-        gpg_cmd = '{} --list-secret-keys'.format(self.gpg.getbin())
-        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
-
     def import_key(self, filename):
         gpg_cmd = '{} --import {}'.format(self.gpg.getbin(), filename)
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
