@@ -151,14 +151,14 @@ class Gpg(object):
                     }
                 # If key already exists, update its secret_available status if this is a secret key record
                 elif is_secret_record:
-                    primary_keys_info[pk_id]['secret_available'] = True
-                
+                   primary_keys_info[pk_id]['secret_available'] = True
+
                 # Always update/set these fields, could be from pub then sec, or vice-versa
                 # but ensure we don't lose secret_available if pub comes after sec
                 if not is_secret_record and primary_keys_info[pk_id].get('secret_available', False):
-                    pass # Don't overwrite secret_available = True with False from a pub record
+                    pass  # Don't overwrite secret_available = True with False from a pub record
                 elif is_secret_record:
-                     primary_keys_info[pk_id]['secret_available'] = True
+                    primary_keys_info[pk_id]['secret_available'] = True
 
 
                 primary_keys_info[pk_id]['algorithm_name'] = GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}")
@@ -209,7 +209,7 @@ class Gpg(object):
                 # Always update/set these fields for subkeys
                 # but ensure we don't lose secret_available if sub comes after ssb
                 if not is_secret_subkey_record and pk_entry_ref['subkeys'][sk_id].get('secret_available', False):
-                    pass # Don't overwrite secret_available = True with False
+                    pass  # Don't overwrite secret_available = True with False
                 elif is_secret_subkey_record:
                     pk_entry_ref['subkeys'][sk_id]['secret_available'] = True
 
@@ -217,7 +217,7 @@ class Gpg(object):
                 pk_entry_ref['subkeys'][sk_id]['key_length'] = int(fields[2]) if fields[2].isdigit() else 0
                 pk_entry_ref['subkeys'][sk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
                 pk_entry_ref['subkeys'][sk_id]['expiration_date'] = int(fields[6]) if fields[6].isdigit() else None
-                
+
                 sk_entry_ref = pk_entry_ref['subkeys'][sk_id]
                 # Clear and re-populate capabilities for subkey
                 sk_entry_ref['capabilities'] = []
