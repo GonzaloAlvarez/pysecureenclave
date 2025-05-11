@@ -13,7 +13,7 @@ from io import StringIO
 import urllib.parse
 
 from loguru import logger
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 from secureenclave.datamodel import GpgKey, GpgSubkey
 
@@ -151,7 +151,7 @@ class Gpg(object):
                     }
                 # If key already exists, update its secret_available status if this is a secret key record
                 elif is_secret_record:
-                   primary_keys_info[pk_id]['secret_available'] = True
+                    primary_keys_info[pk_id]['secret_available'] = True
 
                 if not is_secret_record and primary_keys_info[pk_id].get('secret_available', False):
                     pass
@@ -310,7 +310,7 @@ class Gpg(object):
                 # This secret key (and its subkeys) was not in public_keys list. Add it directly.
                 # All its secret_available flags are already True.
                 merged_keys_map[key_tuple] = sec_key
-            
+
         return list(merged_keys_map.values())
 
     def get_keys(self) -> List[GpgKey]:
