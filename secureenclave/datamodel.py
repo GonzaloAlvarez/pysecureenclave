@@ -50,19 +50,29 @@ class IdentityInfo(object):
 
 @dataclass
 class GpgKey:
-    uid: str
-    pub: str
-    fingerprint: str
-    trust: str
+    uid: str  # User ID string
+    key_id: str  # Key ID
+    fingerprint: Optional[str]  # Key fingerprint
+    uid_validity: str  # Validity of the UID (e.g., "fully valid")
+    owner_trust: Optional[str]  # Owner trust (e.g., "ultimately trusted")
+    algorithm_name: str  # Public key algorithm (e.g., "RSA")
+    key_length: int  # Key length in bits
+    creation_date: int  # Key creation date (timestamp)
+    expiration_date: Optional[int]  # Key expiration date (timestamp)
+    capabilities: List[str]  # Key capabilities (e.g., ["sign", "encrypt"])
+    keygrip: Optional[str]  # Keygrip
 
     def __str__(self):
-        return self.uid.strip()
+        return f"{self.uid} ({self.key_id})"
 
     def __len__(self):
+        # Provides a consistent length representation, perhaps based on UID
         return len(self.uid.strip())
 
     def __add__(self, other):
+        # Concatenation behavior, might need adjustment based on typical use
         return str(self) + other
 
     def __radd__(self, other):
+        # Concatenation behavior, might need adjustment based on typical use
         return other + str(self)
