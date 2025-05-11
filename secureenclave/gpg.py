@@ -145,25 +145,37 @@ class Gpg(object):
                         'capabilities': [],
                         'fingerprint': None,
                         'keygrip': None,
-                        'is_secret': is_secret_record,
+                        'secret_available': is_secret_record,
                         'uids': [],
                         'subkeys': {},
                     }
-                else:
-                    primary_keys_info[pk_id]['is_secret'] = primary_keys_info[pk_id]['is_secret'] or is_secret_record
-                    primary_keys_info[pk_id]['algorithm_name'] = GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}")
-                    primary_keys_info[pk_id]['key_length'] = int(fields[2]) if fields[2].isdigit() else 0
-                    primary_keys_info[pk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
+                # If key already exists, update its secret_available status if this is a secret key record
+                elif is_secret_record:
+                    primary_keys_info[pk_id]['secret_available'] = True
+                
+                # Always update/set these fields, could be from pub then sec, or vice-versa
+                # but ensure we don't lose secret_available if pub comes after sec
+                if not is_secret_record and primary_keys_info[pk_id].get('secret_available', False):
+                    pass # Don't overwrite secret_available = True with False from a pub record
+                elif is_secret_record:
+                     primary_keys_info[pk_id]['secret_available'] = True
+
+
+                primary_keys_info[pk_id]['algorithm_name'] = GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}")
+                primary_keys_info[pk_id]['key_length'] = int(fields[2]) if fields[2].isdigit() else 0
+                primary_keys_info[pk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
                     primary_keys_info[pk_id]['expiration_date'] = int(fields[6]) if fields[6].isdigit() else None
                     primary_keys_info[pk_id]['owner_trust'] = GPG_OWNERTRUST_MAP.get(fields[8], "unknown") if len(fields) > 8 else "unknown"
                     primary_keys_info[pk_id]['capabilities'] = []
 
                 pk_entry_ref = primary_keys_info[pk_id]
+                # Clear and re-populate capabilities, as they might differ if pub/sec records are processed sequentially for the same key
+                pk_entry_ref['capabilities'] = []
                 if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
                         pk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
                 attachment_target_dict = pk_entry_ref
-                logger.debug(f"Processed {record_type} key: {pk_id}, is_secret: {pk_entry_ref['is_secret']}")
+                logger.debug(f"Processed {record_type} key: {pk_id}, secret_available: {pk_entry_ref['secret_available']}")
 
             elif record_type in ('sub', 'ssb'):
                 if not current_pk_id_active:
@@ -183,22 +195,32 @@ class Gpg(object):
                         'capabilities': [],
                         'fingerprint': None,
                         'keygrip': None,
-                        'is_secret': is_secret_subkey_record,
+                        'secret_available': is_secret_subkey_record,
                     }
-                else:
-                    pk_entry_ref['subkeys'][sk_id]['is_secret'] = pk_entry_ref['subkeys'][sk_id]['is_secret'] or is_secret_subkey_record
-                    pk_entry_ref['subkeys'][sk_id]['algorithm_name'] = GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}")
-                    pk_entry_ref['subkeys'][sk_id]['key_length'] = int(fields[2]) if fields[2].isdigit() else 0
-                    pk_entry_ref['subkeys'][sk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
-                    pk_entry_ref['subkeys'][sk_id]['expiration_date'] = int(fields[6]) if fields[6].isdigit() else None
-                    pk_entry_ref['subkeys'][sk_id]['capabilities'] = []
+                # If subkey already exists, update its secret_available status if this is a secret subkey record
+                elif is_secret_subkey_record:
+                    pk_entry_ref['subkeys'][sk_id]['secret_available'] = True
 
+                # Always update/set these fields for subkeys
+                # but ensure we don't lose secret_available if sub comes after ssb
+                if not is_secret_subkey_record and pk_entry_ref['subkeys'][sk_id].get('secret_available', False):
+                    pass # Don't overwrite secret_available = True with False
+                elif is_secret_subkey_record:
+                    pk_entry_ref['subkeys'][sk_id]['secret_available'] = True
+
+                pk_entry_ref['subkeys'][sk_id]['algorithm_name'] = GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}")
+                pk_entry_ref['subkeys'][sk_id]['key_length'] = int(fields[2]) if fields[2].isdigit() else 0
+                pk_entry_ref['subkeys'][sk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
+                pk_entry_ref['subkeys'][sk_id]['expiration_date'] = int(fields[6]) if fields[6].isdigit() else None
+                
                 sk_entry_ref = pk_entry_ref['subkeys'][sk_id]
+                # Clear and re-populate capabilities for subkey
+                sk_entry_ref['capabilities'] = []
                 if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
                         sk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
                 attachment_target_dict = sk_entry_ref
-                logger.debug(f"Processed {record_type} subkey: {sk_id} for pk {current_pk_id_active}, is_secret: {sk_entry_ref['is_secret']}")
+                logger.debug(f"Processed {record_type} subkey: {sk_id} for pk {current_pk_id_active}, secret_available: {sk_entry_ref['secret_available']}")
 
             elif record_type == 'fpr':
                 if attachment_target_dict and len(fields) > 9:

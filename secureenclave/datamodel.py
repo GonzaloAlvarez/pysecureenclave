@@ -58,7 +58,7 @@ class GpgSubkey:
     capabilities: List[str]
     fingerprint: Optional[str] = None
     keygrip: Optional[str] = None
-    is_secret: bool = False
+    secret_available: bool = False
 
     def __str__(self):
         return f"Subkey({self.key_id}, {self.algorithm_name})"
@@ -77,7 +77,7 @@ class GpgKey:
     expiration_date: Optional[int]  # Primary key expiration date (timestamp)
     capabilities: List[str]  # Primary key capabilities
     keygrip: Optional[str]  # Primary keygrip
-    is_secret: bool = False  # True if this primary key has a secret part
+    secret_available: bool = False  # True if the secret part of this primary key is available
     subkeys: List[GpgSubkey] = field(default_factory=list)  # List of associated subkeys
 
     def __str__(self):
