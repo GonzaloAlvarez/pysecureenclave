@@ -9,12 +9,11 @@ import os
 import sys
 import shutil
 import invoke
-import re
 from io import StringIO
 import urllib.parse
 
 from loguru import logger
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from secureenclave.datamodel import GpgKey
 
@@ -68,19 +67,19 @@ GPG_VALIDITY_MAP: Dict[str, str] = {
     'f': "fully valid",
     'u': "ultimately valid",
     's': "special validity",
-    'w': "well-known public key", # GnuPG specific
+    'w': "well-known public key",  # GnuPG specific
 }
 
 GPG_OWNERTRUST_MAP: Dict[str, str] = {
     '-': "unknown",
-    'o': "unknown", # GnuPG specific for "not enough information"
+    'o': "unknown",  # GnuPG specific for "not enough information"
     'q': "undefined",
     'n': "not trusted",
     'm': "marginally trusted",
     'f': "fully trusted",
     'u': "ultimately trusted",
-    'e': "expired", # GnuPG specific for expired trust signature
-    'r': "revoked", # GnuPG specific for revoked trust signature
+    'e': "expired",  # GnuPG specific for expired trust signature
+    'r': "revoked",  # GnuPG specific for revoked trust signature
 }
 
 GPG_CAPABILITY_MAP: Dict[str, str] = {
@@ -88,7 +87,7 @@ GPG_CAPABILITY_MAP: Dict[str, str] = {
     's': "sign",
     'c': "certify",
     'a': "authenticate",
-    't': "set-primary-uid", # GnuPG specific, often on self-signatures
+    't': "set-primary-uid",  # GnuPG specific, often on self-signatures
     '?': "unknown"
 }
 
@@ -141,8 +140,8 @@ class Gpg(object):
                     'expiration_date': int(fields[6]) if fields[6].isdigit() else None,
                     'owner_trust': GPG_OWNERTRUST_MAP.get(fields[8], "unknown") if len(fields) > 8 else "unknown",
                     'capabilities': [],
-                    'fingerprint': None, # Will be filled by 'fpr' record
-                    'keygrip': None,     # Will be filled by 'grp' record
+                    'fingerprint': None,  # Will be filled by 'fpr' record
+                    'keygrip': None,      # Will be filled by 'grp' record
                 }
                 # Parse capabilities from field 11 (e.g., "scea")
                 if len(fields) > 11 and fields[11]:
@@ -156,7 +155,6 @@ class Gpg(object):
                     current_key_details['fingerprint'] = fields[9]
                     logger.debug(f"Found fingerprint for {current_key_details.get('key_id')}: {fields[9]}")
 
-
             elif record_type == 'grp' and current_key_details:
                 # Keygrip for the current key
                 if len(fields) > 9:
@@ -166,16 +164,15 @@ class Gpg(object):
             elif record_type == 'uid' and current_key_details and 'key_id' in current_key_details:
                 # User ID for the current key
                 uid_string = ""
-                if len(fields) > 9: # GnuPG 2.1+ format
+                if len(fields) > 9:  # GnuPG 2.1+ format
                     uid_string = urllib.parse.unquote_plus(fields[9])
-                elif len(fields) > 7: # Older GnuPG format might have UID in field 7
-                     uid_string = urllib.parse.unquote_plus(fields[7])
-
+                elif len(fields) > 7:  # Older GnuPG format might have UID in field 7
+                    uid_string = urllib.parse.unquote_plus(fields[7])
 
                 uid_validity_char = fields[1]
                 uid_validity = GPG_VALIDITY_MAP.get(uid_validity_char, "unknown validity")
 
-                if not uid_string: # Skip if UID string is empty
+                if not uid_string:  # Skip if UID string is empty
                     logger.warning(f"Skipping UID for key {current_key_details['key_id']} due to empty UID string. Line: {line}")
                     continue
 
@@ -195,7 +192,7 @@ class Gpg(object):
                 keys_list.append(gpg_key)
                 logger.debug(f"Added GpgKey: {uid_string} for key {current_key_details['key_id']}")
 
-            elif record_type in ('sub', 'ssb'): # Subkey, reset current_key_details to avoid associating UIDs with subkeys
+            elif record_type in ('sub', 'ssb'):  # Subkey, reset current_key_details to avoid associating UIDs with subkeys
                 # For now, we are not parsing subkeys into GpgKey objects in this list.
                 # If subkeys were to be listed, they'd need their own 'fpr', 'grp' etc.
                 # Resetting current_key_details ensures subsequent UIDs are not wrongly associated.
@@ -204,7 +201,6 @@ class Gpg(object):
                 # For safety, we can clear parts that are subkey-specific if we were to process them.
                 # For now, we assume UIDs always belong to the last 'pub' key.
                 pass
-
 
         if not keys_list and raw_output:
             logger.debug("No keys found or parsed from GPG output.")
@@ -221,8 +217,8 @@ class Gpg(object):
         logger.debug(f"Executing GPG command: {gpg_cmd}")
         try:
             # pty=True is generally not recommended for machine-readable output
-            output = invoke.run(gpg_cmd, env=self.getenv(), hide=True, warn=True) # warn=True to catch errors
-            output.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+            output = invoke.run(gpg_cmd, env=self.getenv(), hide=True, warn=True)  # warn=True to catch errors
+            output.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
             raw: str = output.stdout
             logger.trace(f"Raw GPG output:\n{raw}")
             return self._parse_gpg_list_cmd(raw)
@@ -230,11 +226,10 @@ class Gpg(object):
             logger.error(f"GPG command failed: {e.result.command}")
             logger.error(f"GPG stderr: {e.result.stderr}")
             logger.error(f"GPG stdout: {e.result.stdout}")
-            return [] # Return empty list on error
+            return []  # Return empty list on error
         except Exception as e:
             logger.error(f"An unexpected error occurred while getting GPG keys: {e}")
             return []
-
 
     def card_edit(self, attribute, value):
         __content__ = __gpg_card_edit__.format(attribute, value)
