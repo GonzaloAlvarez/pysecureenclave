@@ -25,7 +25,7 @@ def id_new(ctx, **kwargs):
     """Creates a new identity and stores it."""
     identity_info = ConsoleUI().populate_object(IdentityInfo())
     with SecureEnclave() as secure_enclave:
-        secure_enclave.save_identity(identity_info)
+        secure_enclave.identity_manager.save_identity(identity_info)
     logger.info(f"Identity for {identity_info.first_name} {identity_info.last_name} created.")
 
 
@@ -36,7 +36,7 @@ def id_new(ctx, **kwargs):
 def id_list(ctx, **kwargs):
     """Lists all identities stored in the database."""
     with SecureEnclave() as secure_enclave:
-        identities = secure_enclave.list_identities()
+        identities = secure_enclave.identity_manager.list_identities()
         if not identities:
             logger.info("No identities found.")
             return
@@ -54,7 +54,7 @@ def id_list(ctx, **kwargs):
 def id_del(ctx, **kwargs):
     """Deletes an existing identity after user selection and confirmation."""
     with SecureEnclave() as secure_enclave:
-        identities = secure_enclave.list_identities()
+        identities = secure_enclave.identity_manager.list_identities()
         if not identities:
             logger.info("No identities found to delete.")
             return
@@ -69,6 +69,6 @@ def id_del(ctx, **kwargs):
         identity_to_delete_display = f"{selected_identity['first_name']} {selected_identity['last_name']} ({selected_identity['email']})"
         confirm_prompt = YesNo(f"Are you sure you want to delete the identity for {identity_to_delete_display}? ", default='n')
         if confirm_prompt.launch():
-            secure_enclave.delete_identity(selected_identity['id'])
+            secure_enclave.identity_manager.delete_identity(selected_identity['id'])
         else:
             logger.info("Identity deletion cancelled.")

@@ -8,8 +8,6 @@ import shutil
 import platformdirs
 import invoke
 import re
-import sqlite3
-import uuid
 
 from loguru import logger
 from pathlib import Path
@@ -19,6 +17,7 @@ from bullet import YesNo, Bullet
 from .gpg import Gpg
 from .gpgagent import GpgAgent
 from .smartcard import SmartCard
+from .identities import IdentityManager
 
 
 __author__ = 'Gonzalo Alvarez'
@@ -50,81 +49,7 @@ class SecureEnclave(object):
         self.gpg = Gpg(self.home)
         self.gpg_agent = GpgAgent(self.gpg)
         self.smartcard = SmartCard(self.gpg)
-        self.db_path = self.home / 'identities.db'
-        self._init_db()
-
-    def _init_db(self):
-        """Initializes the SQLite database and creates the identities table if it doesn't exist."""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS identities (
-                    id TEXT PRIMARY KEY,
-                    first_name TEXT,
-                    last_name TEXT,
-                    email TEXT,
-                    salutation TEXT
-                )
-            ''')
-            conn.commit()
-        except sqlite3.Error as e:
-            logger.error(f"Database error during initialization: {e}")
-        finally:
-            if conn:
-                conn.close()
-
-    def save_identity(self, identity_info):
-        """Saves a new identity to the database."""
-        identity_id = str(uuid.uuid4())
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO identities (id, first_name, last_name, email, salutation)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (identity_id, identity_info.first_name, identity_info.last_name, identity_info.email, identity_info.salutation))
-            conn.commit()
-            logger.success(f"Identity saved with ID: {identity_id}")
-        except sqlite3.Error as e:
-            logger.error(f"Failed to save identity: {e}")
-        finally:
-            if conn:
-                conn.close()
-
-    def list_identities(self):
-        """Retrieves all identities from the database."""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, first_name, last_name, email, salutation FROM identities")
-            rows = cursor.fetchall()
-            identities = [dict(row) for row in rows]
-            return identities
-        except sqlite3.Error as e:
-            logger.error(f"Failed to list identities: {e}")
-            return []
-        finally:
-            if conn:
-                conn.close()
-
-    def delete_identity(self, identity_id):
-        """Deletes an identity from the database by its ID."""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM identities WHERE id = ?", (identity_id,))
-            conn.commit()
-            if cursor.rowcount > 0:
-                logger.success(f"Identity with ID: {identity_id} deleted successfully.")
-            else:
-                logger.warning(f"No identity found with ID: {identity_id}.")
-        except sqlite3.Error as e:
-            logger.error(f"Failed to delete identity {identity_id}: {e}")
-        finally:
-            if conn:
-                conn.close()
+        self.identity_manager = IdentityManager(self.home)
 
     def is_card_installed(self):
         """Check if a smartcard is installed"""
@@ -215,17 +140,6 @@ class SecureEnclave(object):
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
 
     def new_key(self, new_key_uid, passphrase):
-        """
-        Creates a new GPG key with the provided UID and passphrase.
-        Handles the GPG command execution for key and subkey generation.
-
-        Args:
-            new_key_uid: The user ID string for the new key.
-            passphrase: The passphrase for the new key.
-
-        Returns:
-            True if key creation was successful, False otherwise.
-        """
         if not new_key_uid:
             logger.error("New key UID not provided.")
             return False
@@ -264,7 +178,7 @@ class SecureEnclave(object):
         logger.success('GPG Key creation completed, including all subkeys. Use "key list" to explore.')
         return True
 
-    def del_key(self, secret_only=False):
+    def del_key(self, public=True, secret=True):
         keys = self.gpg.get_keys()
         if not keys:
             logger.info("No keys available to delete.")
@@ -275,17 +189,19 @@ class SecureEnclave(object):
             logger.info("Key deletion cancelled.")
             return
 
-        logger.info(f"Attempting to delete secret key for {selected.fingerprint}...")
-        gpg_cmd_secret = '{} -q --batch --delete-secret-key {}'.format(self.gpg.getbin(), selected.fingerprint)
-        result_secret = invoke.run(gpg_cmd_secret, env=self.gpg.getenv(), pty=True, hide=True)
-        if result_secret.ok:  # type: ignore
-            logger.success(f"Secret key for {selected.fingerprint} deleted successfully.")
+        if secret:
+            gpg_cmd_secret = '{} -q --batch --delete-secret-key {}'.format(self.gpg.getbin(), selected.fingerprint)
+            result_secret = invoke.run(gpg_cmd_secret, env=self.gpg.getenv(), pty=True, hide=True)
+            if result_secret.ok:  # type: ignore
+                logger.success(f"Secret key for {selected.fingerprint} deleted successfully.")
+            else:
+                logger.error(f"Failed to delete secret key for {selected.fingerprint}.")
+                logger.debug(f"Output: {result_secret.stdout}")  # type: ignore
+                logger.debug(f"Error: {result_secret.stderr}")  # type: ignore
         else:
-            logger.error(f"Failed to delete secret key for {selected.fingerprint}.")
-            logger.debug(f"Output: {result_secret.stdout}")  # type: ignore
-            logger.debug(f"Error: {result_secret.stderr}")  # type: ignore
+            logger.info(f"Skipping secret key deletion for {selected.fingerprint} as per --secret flag.")
 
-        if not secret_only:
+        if public:
             logger.info(f"Attempting to delete public key for {selected.fingerprint}...")
             gpg_cmd_public = '{} -q --batch --delete-key {}'.format(self.gpg.getbin(), selected.fingerprint)
             result_public = invoke.run(gpg_cmd_public, env=self.gpg.getenv(), pty=True, hide=True)

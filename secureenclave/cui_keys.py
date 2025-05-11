@@ -30,7 +30,7 @@ class ConsoleUI_Keys(object):
         identity_info = None
         should_create_new_identity = False
 
-        identities = secure_enclave.list_identities()
+        identities = secure_enclave.identity_manager.list_identities()
 
         if not identities:
             logger.info("No existing identities found.")
@@ -90,7 +90,7 @@ class ConsoleUI_Keys(object):
             created_identity = self.console_ui.populate_object(new_identity_obj)
             if created_identity:
                 identity_info = created_identity
-                secure_enclave.save_identity(identity_info)
+                secure_enclave.identity_manager.save_identity(identity_info)
             else:
                 logger.info("Identity creation cancelled by user. Key creation aborted.")
                 return None, None
