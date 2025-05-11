@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2025, Gonzalo Alvarez
+
 import pytest
 from pathlib import Path
 from typing import List, Optional
@@ -169,7 +173,7 @@ def test_dedup_keys_secret_key_has_new_subkey_not_in_public(gpg_instance):
     sec_skey = create_subkey(key_id=sec_only_subkey_id, secret_available=True)
 
     pub_key = create_key(key_id=shared_id, uid=shared_uid, secret_available=False, subkeys=[pub_skey])
-    sec_key = create_key(key_id=shared_id, uid=shared_uid, secret_available=True, subkeys=[sec_skey]) # sec_key has a different subkey
+    sec_key = create_key(key_id=shared_id, uid=shared_uid, secret_available=True, subkeys=[sec_skey])
 
     public_keys = [pub_key]
     secret_keys = [sec_key]
@@ -198,7 +202,6 @@ def test_dedup_keys_public_key_has_subkey_not_in_secret(gpg_instance):
     pub_only_skey = create_subkey(key_id=pub_only_subkey_id, secret_available=False)
     common_sec_skey = create_subkey(key_id=common_subkey_id, secret_available=True)
 
-
     pub_key = create_key(key_id=shared_id, uid=shared_uid, secret_available=False, subkeys=[common_pub_skey, pub_only_skey])
     sec_key = create_key(key_id=shared_id, uid=shared_uid, secret_available=True, subkeys=[common_sec_skey])
 
@@ -225,7 +228,7 @@ def test_dedup_keys_different_uids_same_keyid_treated_as_distinct(gpg_instance):
     uid2 = "user2@example.com"
 
     key_uid1 = create_key(key_id=same_key_id, uid=uid1, secret_available=False)
-    key_uid2 = create_key(key_id=same_key_id, uid=uid2, secret_available=False) # Same key_id, different UID
+    key_uid2 = create_key(key_id=same_key_id, uid=uid2, secret_available=False)
 
     public_keys = [key_uid1, key_uid2]
     secret_keys = []
