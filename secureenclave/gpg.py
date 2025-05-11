@@ -161,12 +161,10 @@ class Gpg(object):
                     # Capabilities might be additive or different, clear and re-add for simplicity
                     primary_keys_info[pk_id]['capabilities'] = []
 
-
                 pk_entry_ref = primary_keys_info[pk_id]
                 if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
                         pk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
-                
                 attachment_target_dict = pk_entry_ref
                 logger.debug(f"Processed {record_type} key: {pk_id}, is_secret: {pk_entry_ref['is_secret']}")
 
@@ -174,7 +172,6 @@ class Gpg(object):
                 if not current_pk_id_active:
                     logger.warning(f"Orphaned subkey record: {line}. Skipping.")
                     continue
-                
                 sk_id = fields[4]
                 is_secret_subkey_record = (record_type == 'ssb')
                 pk_entry_ref = primary_keys_info[current_pk_id_active]
@@ -200,12 +197,10 @@ class Gpg(object):
                     pk_entry_ref['subkeys'][sk_id]['expiration_date'] = int(fields[6]) if fields[6].isdigit() else None
                     pk_entry_ref['subkeys'][sk_id]['capabilities'] = []
 
-
                 sk_entry_ref = pk_entry_ref['subkeys'][sk_id]
-                if len(fields) > 11 and fields[11]: # Subkey capabilities
+                if len(fields) > 11 and fields[11]:  # Subkey capabilities
                     for char_code in fields[11]:
                         sk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
-                
                 attachment_target_dict = sk_entry_ref
                 logger.debug(f"Processed {record_type} subkey: {sk_id} for pk {current_pk_id_active}, is_secret: {sk_entry_ref['is_secret']}")
 
@@ -215,7 +210,7 @@ class Gpg(object):
                     logger.debug(f"Found fingerprint for {attachment_target_dict.get('key_id')}: {fields[9]}")
                 else:
                     logger.warning(f"Orphaned fingerprint or no attachment target: {line}")
-            
+
             elif record_type == 'grp':
                 if attachment_target_dict and len(fields) > 9:
                     attachment_target_dict['keygrip'] = fields[9]
@@ -235,12 +230,11 @@ class Gpg(object):
                 if not uid_string:
                     logger.warning(f"Skipping UID for key {current_pk_id_active} due to empty UID string. Line: {line}")
                     continue
-                
                 primary_keys_info[current_pk_id_active]['uids'].append({
                     'uid_text': uid_string,
                     'uid_validity': uid_validity,
                 })
-                attachment_target_dict = primary_keys_info[current_pk_id_active] # Reset target to primary key
+                attachment_target_dict = primary_keys_info[current_pk_id_active]  # Reset target to primary key
                 logger.debug(f"Processed UID: '{uid_string}' for pk {current_pk_id_active}")
 
         # Construct final GpgKey objects
@@ -249,14 +243,12 @@ class Gpg(object):
             subkeys_obj_list: List[GpgSubkey] = []
             for sk_id, sk_data_dict in pk_data_dict.get('subkeys', {}).items():
                 subkeys_obj_list.append(GpgSubkey(**sk_data_dict))
-            
             # Create a GpgKey object for each UID associated with this primary key
             if not pk_data_dict.get('uids'):
-                 logger.warning(f"Primary key {pk_id} has no UIDs. Skipping GpgKey object creation for it directly, though its subkeys are parsed.")
+                logger.warning(f"Primary key {pk_id} has no UIDs. Skipping GpgKey object creation for it directly, though its subkeys are parsed.")
             for uid_info in pk_data_dict.get('uids', []):
                 # Prepare pk_data_dict for GpgKey constructor by removing non-GpgKey fields
                 constructor_pk_data = {k: v for k, v in pk_data_dict.items() if k not in ['uids', 'subkeys']}
-                
                 gpg_key_obj = GpgKey(
                     uid=uid_info['uid_text'],
                     uid_validity=uid_info['uid_validity'],
@@ -264,12 +256,10 @@ class Gpg(object):
                     **constructor_pk_data
                 )
                 final_gpg_keys.append(gpg_key_obj)
-        
         if not final_gpg_keys and raw_output:
             logger.debug("No GPG keys with UIDs were fully parsed from GPG output.")
         elif not raw_output:
             logger.debug("GPG output was empty.")
-            
         return final_gpg_keys
 
     def get_keys(self) -> List[GpgKey]:
