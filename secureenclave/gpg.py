@@ -267,13 +267,59 @@ class Gpg(object):
             logger.debug("GPG output was empty.")
         return final_gpg_keys
 
+    def _dedup_keys(self, public_keys: List[GpgKey], secret_keys: List[GpgKey]) -> List[GpgKey]:
+        """
+        Merges lists of public and secret GPG keys.
+
+        Prioritizes information from secret_keys (e.g., secret_available=True)
+        when a key exists in both lists.
+        """
+        merged_keys_map: Dict[Tuple[str, str], GpgKey] = {}
+
+        # First, add all public keys. Their secret_available flags are False by default
+        # as parsed by _parse_gpg_list_cmd when called with --list-keys output.
+        for pub_key in public_keys:
+            key_tuple = (pub_key.key_id, pub_key.uid)
+            merged_keys_map[key_tuple] = pub_key
+
+        # Now, process secret keys.
+        # If a key exists from public_keys, update its secret_available status.
+        # If it doesn't exist, add the secret key (all its flags are already True).
+        for sec_key in secret_keys:
+            key_tuple = (sec_key.key_id, sec_key.uid)
+            if key_tuple in merged_keys_map:
+                # Key already exists from public_keys list. Update its secret_available flags.
+                existing_key = merged_keys_map[key_tuple]
+                existing_key.secret_available = True  # sec_key has this True
+
+                # Create a map of existing subkeys for quick lookup and update
+                existing_subkeys_map: Dict[str, GpgSubkey] = {
+                    subkey.key_id: subkey for subkey in existing_key.subkeys
+                }
+
+                for sec_subkey in sec_key.subkeys:
+                    if sec_subkey.key_id in existing_subkeys_map:
+                        # Subkey exists, update its secret_available flag
+                        # sec_subkey from secret_keys list has secret_available=True
+                        existing_subkeys_map[sec_subkey.key_id].secret_available = True
+                    else:
+                        # This secret subkey was not in the public key's subkey list. Add it.
+                        # Its secret_available is already True from parsing secret_keys.
+                        existing_key.subkeys.append(sec_subkey)
+            else:
+                # This secret key (and its subkeys) was not in public_keys list. Add it directly.
+                # All its secret_available flags are already True.
+                merged_keys_map[key_tuple] = sec_key
+            
+        return list(merged_keys_map.values())
+
     def get_keys(self) -> List[GpgKey]:
         command = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-keys'
         output = invoke.run(command=command, env=self.getenv(), hide=True, warn=True)
-        public_keys = self._parse_gpg_list_cmd(output.raw_output)
+        public_keys = self._parse_gpg_list_cmd(output.stdout)
         command = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-secret-keys'
         output = invoke.run(command=command, env=self.getenv(), hide=True, warn=True)
-        secret_keys = self._parse_gpg_list_cmd(output.raw_output)
+        secret_keys = self._parse_gpg_list_cmd(output.stdout)
         keys = self._dedup_keys(public_keys, secret_keys)
         return keys
 
