@@ -153,10 +153,8 @@ class Gpg(object):
                 elif is_secret_record:
                    primary_keys_info[pk_id]['secret_available'] = True
 
-                # Always update/set these fields, could be from pub then sec, or vice-versa
-                # but ensure we don't lose secret_available if pub comes after sec
                 if not is_secret_record and primary_keys_info[pk_id].get('secret_available', False):
-                    pass  # Don't overwrite secret_available = True with False from a pub record
+                    pass
                 elif is_secret_record:
                     primary_keys_info[pk_id]['secret_available'] = True
 
@@ -165,15 +163,7 @@ class Gpg(object):
                 primary_keys_info[pk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
                 primary_keys_info[pk_id]['expiration_date'] = int(fields[6]) if fields[6].isdigit() else None
                 primary_keys_info[pk_id]['owner_trust'] = GPG_OWNERTRUST_MAP.get(fields[8], "unknown") if len(fields) > 8 else "unknown"
-                # Note: 'capabilities' is cleared and re-populated a few lines below,
-                # so initializing it here might be redundant if that logic is intended to always run.
-                # However, to match the previous structure before the faulty indentation,
-                # we can keep it or remove it if the subsequent re-population is guaranteed.
-                # For now, let's assume the re-population is the primary source.
-                # primary_keys_info[pk_id]['capabilities'] = [] # This line was present before, but might be overwritten
-
                 pk_entry_ref = primary_keys_info[pk_id]
-                # Clear and re-populate capabilities, as they might differ if pub/sec records are processed sequentially for the same key
                 pk_entry_ref['capabilities'] = []
                 if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
@@ -201,14 +191,11 @@ class Gpg(object):
                         'keygrip': None,
                         'secret_available': is_secret_subkey_record,
                     }
-                # If subkey already exists, update its secret_available status if this is a secret subkey record
                 elif is_secret_subkey_record:
                     pk_entry_ref['subkeys'][sk_id]['secret_available'] = True
 
-                # Always update/set these fields for subkeys
-                # but ensure we don't lose secret_available if sub comes after ssb
                 if not is_secret_subkey_record and pk_entry_ref['subkeys'][sk_id].get('secret_available', False):
-                    pass  # Don't overwrite secret_available = True with False
+                    pass
                 elif is_secret_subkey_record:
                     pk_entry_ref['subkeys'][sk_id]['secret_available'] = True
 
@@ -218,7 +205,6 @@ class Gpg(object):
                 pk_entry_ref['subkeys'][sk_id]['expiration_date'] = int(fields[6]) if fields[6].isdigit() else None
 
                 sk_entry_ref = pk_entry_ref['subkeys'][sk_id]
-                # Clear and re-populate capabilities for subkey
                 sk_entry_ref['capabilities'] = []
                 if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
@@ -282,50 +268,14 @@ class Gpg(object):
         return final_gpg_keys
 
     def get_keys(self) -> List[GpgKey]:
-        raw_output_parts: List[str] = []
-        base_gpg_cmd_args = [
-            self.getbin(),
-            '--with-colons',
-            '--fixed-list-mode',
-            '--with-fingerprint'
-        ]
-        common_invoke_kwargs = {'env': self.getenv(), 'hide': True, 'warn': True}
-
-        commands_to_run = [
-            (base_gpg_cmd_args + ['--list-keys'], "list-keys"),
-            (base_gpg_cmd_args + ['--list-secret-keys'], "list-secret-keys")
-        ]
-
-        for cmd_parts, desc in commands_to_run:
-            gpg_cmd_str = ' '.join(cmd_parts)
-            logger.debug(f"Executing GPG command: {gpg_cmd_str}")
-            try:
-                output = invoke.run(gpg_cmd_str, **common_invoke_kwargs)
-                if output.ok:
-                    raw_output_parts.append(output.stdout)
-                    logger.debug(f"Raw GPG output for {desc}:\n{output.stdout}")
-                else:
-                    logger.warning(f"GPG command '{gpg_cmd_str}' failed with exit code {output.return_code}.")
-                    logger.warning(f"GPG stderr for {desc}: {output.stderr}")
-            except invoke.exceptions.UnexpectedExit as e:
-                logger.error(f"GPG command '{e.result.command}' failed unexpectedly.")
-                logger.error(f"GPG stderr for {desc}: {e.result.stderr}")
-                logger.error(f"GPG stdout for {desc}: {e.result.stdout}")
-                # Depending on desired behavior, you might want to return [] here or continue
-            except Exception as e:
-                logger.error(f"An unexpected error occurred while executing GPG {desc}: {e}")
-                # Depending on desired behavior, you might want to return [] here
-
-        combined_raw_output: str = "".join(raw_output_parts)
-        if not combined_raw_output:
-            logger.debug("Combined GPG output is empty after running list-keys and list-secret-keys.")
-            return []
-
-        try:
-            return self._parse_gpg_list_cmd(combined_raw_output)
-        except Exception as e:
-            logger.error(f"An unexpected error occurred while parsing combined GPG key data: {e}")
-            return []
+        command = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-keys'
+        output = invoke.run(command=command, env=self.getenv(), hide=True, warn=True)
+        public_keys = self._parse_gpg_list_cmd(output.raw_output)
+        command = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-secret-keys'
+        output = invoke.run(command=command, env=self.getenv(), hide=True, warn=True)
+        secret_keys = self._parse_gpg_list_cmd(output.raw_output)
+        keys = self._dedup_keys(public_keys, secret_keys)
+        return keys
 
     def card_edit(self, attribute, value):
         __content__ = __gpg_card_edit__.format(attribute, value)
