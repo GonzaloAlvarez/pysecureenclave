@@ -88,11 +88,12 @@ def key_new(ctx, **kwargs):
 @click.command(name='del', help='Delete Key')
 @click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
-@click.option('--secret', is_flag=True, help='Only delete the secret key, leave the public key.')
+@click.option('--skip-secret', is_flag=True, default=False, help='Do not delete the secret key')
+@click.option('--skip-public', is_flag=True, default=False, help='Do not delete the public key')
 @click.pass_context
-def key_del(ctx, secret, **kwargs):
+def key_del(ctx, skip_secret, skip_public, **kwargs):
     with SecureEnclave() as secure_enclave:
-        secure_enclave.del_key(secret_only=secret)
+        secure_enclave.del_key(secret=not skip_secret, public= not skip_public)
 
 
 @click.command(name='trust', help='Trust a specific key from the list')
