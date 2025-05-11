@@ -75,15 +75,12 @@ class Gpg(object):
     def getbin(self):
         return self.gpg_bin
 
-    def get_keys(self):
+    def _parse_gpg_list_cmd(self, raw_output: str) -> List[GpgKey]:
         keys: List[GpgKey] = []
-        gpg_cmd = '{} --quiet --list-keys'.format(self.getbin())
-        output = invoke.run(gpg_cmd, env=self.getenv(), pty=True, hide=True)
-        raw = output.stdout  # type: ignore
-        if 'uid  ' in raw:
+        if 'uid  ' in raw_output:
             logger.debug('There is at least a uid in the keylist')
             uid = fingerprint = pub = trust = None
-            for line in raw.splitlines():
+            for line in raw_output.splitlines():
                 if match := re.search('fingerprint[ ]*= ([A-F0-9 ]*)', line):
                     fingerprint = match.group(1).replace(" ", "")
                 if match := re.search('uid (.*)$', line):
@@ -98,6 +95,12 @@ class Gpg(object):
                     keys.append(GpgKey(uid, pub, fingerprint, trust))
                     pub = fingerprint = uid = trust = None
         return keys
+
+    def get_keys(self):
+        gpg_cmd = '{} --quiet --list-keys'.format(self.getbin())
+        output = invoke.run(gpg_cmd, env=self.getenv(), pty=True, hide=True)
+        raw = output.stdout  # type: ignore
+        return self._parse_gpg_list_cmd(raw)
 
     def card_edit(self, attribute, value):
         __content__ = __gpg_card_edit__.format(attribute, value)
