@@ -147,18 +147,15 @@ class Gpg(object):
                         'keygrip': None,
                         'is_secret': is_secret_record,
                         'uids': [],
-                        'subkeys': {},  # Stores subkey data dicts, keyed by subkey_id
+                        'subkeys': {},
                     }
                 else:
-                    # Update existing entry, especially is_secret
                     primary_keys_info[pk_id]['is_secret'] = primary_keys_info[pk_id]['is_secret'] or is_secret_record
-                    # Re-parse fields that might differ or be more complete in a 'sec' record (though usually not)
                     primary_keys_info[pk_id]['algorithm_name'] = GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}")
                     primary_keys_info[pk_id]['key_length'] = int(fields[2]) if fields[2].isdigit() else 0
                     primary_keys_info[pk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
                     primary_keys_info[pk_id]['expiration_date'] = int(fields[6]) if fields[6].isdigit() else None
                     primary_keys_info[pk_id]['owner_trust'] = GPG_OWNERTRUST_MAP.get(fields[8], "unknown") if len(fields) > 8 else "unknown"
-                    # Capabilities might be additive or different, clear and re-add for simplicity
                     primary_keys_info[pk_id]['capabilities'] = []
 
                 pk_entry_ref = primary_keys_info[pk_id]
@@ -190,7 +187,6 @@ class Gpg(object):
                     }
                 else:
                     pk_entry_ref['subkeys'][sk_id]['is_secret'] = pk_entry_ref['subkeys'][sk_id]['is_secret'] or is_secret_subkey_record
-                    # Re-parse fields for subkey
                     pk_entry_ref['subkeys'][sk_id]['algorithm_name'] = GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}")
                     pk_entry_ref['subkeys'][sk_id]['key_length'] = int(fields[2]) if fields[2].isdigit() else 0
                     pk_entry_ref['subkeys'][sk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
@@ -198,7 +194,7 @@ class Gpg(object):
                     pk_entry_ref['subkeys'][sk_id]['capabilities'] = []
 
                 sk_entry_ref = pk_entry_ref['subkeys'][sk_id]
-                if len(fields) > 11 and fields[11]:  # Subkey capabilities
+                if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
                         sk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
                 attachment_target_dict = sk_entry_ref
@@ -234,20 +230,17 @@ class Gpg(object):
                     'uid_text': uid_string,
                     'uid_validity': uid_validity,
                 })
-                attachment_target_dict = primary_keys_info[current_pk_id_active]  # Reset target to primary key
+                attachment_target_dict = primary_keys_info[current_pk_id_active]
                 logger.debug(f"Processed UID: '{uid_string}' for pk {current_pk_id_active}")
 
-        # Construct final GpgKey objects
         final_gpg_keys: List[GpgKey] = []
         for pk_id, pk_data_dict in primary_keys_info.items():
             subkeys_obj_list: List[GpgSubkey] = []
             for sk_id, sk_data_dict in pk_data_dict.get('subkeys', {}).items():
                 subkeys_obj_list.append(GpgSubkey(**sk_data_dict))
-            # Create a GpgKey object for each UID associated with this primary key
             if not pk_data_dict.get('uids'):
                 logger.warning(f"Primary key {pk_id} has no UIDs. Skipping GpgKey object creation for it directly, though its subkeys are parsed.")
             for uid_info in pk_data_dict.get('uids', []):
-                # Prepare pk_data_dict for GpgKey constructor by removing non-GpgKey fields
                 constructor_pk_data = {k: v for k, v in pk_data_dict.items() if k not in ['uids', 'subkeys']}
                 gpg_key_obj = GpgKey(
                     uid=uid_info['uid_text'],
@@ -267,9 +260,8 @@ class Gpg(object):
         logger.debug(f"Executing GPG command: {gpg_cmd}")
         try:
             output = invoke.run(gpg_cmd, env=self.getenv(), hide=True, warn=True)
-            output.raise_for_status()
             raw: str = output.stdout
-            logger.trace(f"Raw GPG output:\n{raw}")
+            logger.debug(f"Raw GPG output:\n{raw}")
             return self._parse_gpg_list_cmd(raw)
         except invoke.exceptions.UnexpectedExit as e:
             logger.error(f"GPG command failed: {e.result.command}")
