@@ -13,7 +13,7 @@ from io import StringIO
 import urllib.parse
 
 from loguru import logger
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from secureenclave.datamodel import GpgKey, GpgSubkey
 
@@ -65,7 +65,7 @@ GPG_VALIDITY_MAP: Dict[str, str] = {
     'f': "fully valid",
     'u': "ultimately valid",
     's': "special validity",
-    'w': "well-known public key", 
+    'w': "well-known public key",
 }
 
 GPG_OWNERTRUST_MAP: Dict[str, str] = {
@@ -154,7 +154,7 @@ class Gpg(object):
                 if not current_primary_key_data:
                     logger.warning(f"Orphaned subkey record found: {line}. Skipping.")
                     continue
-                
+
                 subkey_caps = []
                 if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
@@ -181,7 +181,7 @@ class Gpg(object):
                     logger.debug(f"Found fingerprint for {attachment_target.get('key_id')}: {fingerprint_val}")
                 else:
                     logger.warning(f"Orphaned fingerprint record or missing target: {line}")
-            
+
             elif record_type == 'grp':
                 if attachment_target and len(fields) > 9:
                     keygrip_val = fields[9]
@@ -227,7 +227,6 @@ class Gpg(object):
                 # After a UID, subsequent fpr/grp should ideally target the primary key again
                 # if they appear before a new 'sub' or 'pub'.
                 attachment_target = current_primary_key_data
-
 
         if not parsed_keys and raw_output:
             logger.debug("No keys found or parsed from GPG output.")
