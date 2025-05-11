@@ -93,7 +93,7 @@ def key_new(ctx, **kwargs):
 @click.pass_context
 def key_del(ctx, skip_secret, skip_public, **kwargs):
     with SecureEnclave() as secure_enclave:
-        secure_enclave.del_key(secret=not skip_secret, public= not skip_public)
+        secure_enclave.del_key(secret=not skip_secret, public=not skip_public)
 
 
 @click.command(name='trust', help='Trust a specific key from the list')
