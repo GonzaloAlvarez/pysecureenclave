@@ -27,7 +27,7 @@ def key_list(ctx, **kwargs):
 
         logger.info("Available GPG Keys:")
         for key in keys:
-            key_type = "Secret" if key.is_secret else "Public"
+            key_type = "Secret" if key.secret_available else "Public"
             logger.info("───────────────────────────────────────────────────────────────────────────")
             logger.info(f"👤 UID: {key.uid}")
             logger.info(f"   Key ID: {key.key_id} ({key_type})")
@@ -44,7 +44,7 @@ def key_list(ctx, **kwargs):
             if key.subkeys:
                 logger.info("   Subkeys:")
                 for subkey in key.subkeys:
-                    subkey_type = "Secret" if subkey.is_secret else "Public"
+                    subkey_type = "Secret" if subkey.secret_available else "Public"
                     logger.info(f"     └─ Subkey ID: {subkey.key_id} ({subkey_type})")
                     logger.info(f"        Fingerprint: {subkey.fingerprint if subkey.fingerprint else 'N/A'}")
                     logger.info(f"        Algorithm: {subkey.algorithm_name} ({subkey.key_length} bits)")

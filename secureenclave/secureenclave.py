@@ -204,7 +204,7 @@ class SecureEnclave(object):
     def list_keys(self):
         """List keys on smartcard"""
         logger.info('Public keys')
-        gpg_cmd = '{} --list-keys --with-keygrip'.format(self.gpg.getbin())
+        gpg_cmd = '{} --list-keys --with-colons --fixed-list-mode --with-fingerprint --with-keygrip'.format(self.gpg.getbin())
         invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
         logger.info('Private keys')
         gpg_cmd = '{} --list-secret-keys'.format(self.gpg.getbin())
