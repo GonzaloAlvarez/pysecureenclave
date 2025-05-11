@@ -120,7 +120,6 @@ class Gpg(object):
     def _parse_gpg_list_cmd(self, raw_output: str) -> List[GpgKey]:
         parsed_keys: List[GpgKey] = []
         current_primary_key_data: Optional[Dict[str, Any]] = None
-        # attachment_target points to the dict (primary or subkey) that should receive next fpr/grp
         attachment_target: Optional[Dict[str, Any]] = None
 
         for line in raw_output.splitlines():
@@ -141,7 +140,7 @@ class Gpg(object):
                     'capabilities': [],
                     'fingerprint': None,
                     'keygrip': None,
-                    'subkeys': [],  # Stores raw subkey dictionaries
+                    'subkeys': [],
                 }
                 attachment_target = current_primary_key_data
                 # Parse capabilities from field 11 (e.g., "scea")
@@ -203,7 +202,6 @@ class Gpg(object):
                     logger.warning(f"Skipping UID for key {current_primary_key_data['key_id']} due to empty UID string. Line: {line}")
                     continue
 
-                # Convert raw subkey dicts to GpgSubkey objects
                 subkeys_list = []
                 for sub_dict in current_primary_key_data.get('subkeys', []):
                     subkeys_list.append(GpgSubkey(**sub_dict))
@@ -224,8 +222,6 @@ class Gpg(object):
                 )
                 parsed_keys.append(gpg_key)
                 logger.debug(f"Added GpgKey: {uid_string} for key {current_primary_key_data['key_id']} with {len(subkeys_list)} subkeys")
-                # After a UID, subsequent fpr/grp should ideally target the primary key again
-                # if they appear before a new 'sub' or 'pub'.
                 attachment_target = current_primary_key_data
 
         if not parsed_keys and raw_output:
@@ -236,15 +232,11 @@ class Gpg(object):
         return parsed_keys
 
     def get_keys(self) -> List[GpgKey]:
-        # Use --with-colons for machine-readable output
-        # --fixed-list-mode helps stabilize output across GPG versions
-        # --with-fingerprint ensures fingerprints are included
         gpg_cmd = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-keys'
         logger.debug(f"Executing GPG command: {gpg_cmd}")
         try:
-            # pty=True is generally not recommended for machine-readable output
-            output = invoke.run(gpg_cmd, env=self.getenv(), hide=True, warn=True)  # warn=True to catch errors
-            output.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+            output = invoke.run(gpg_cmd, env=self.getenv(), hide=True, warn=True)
+            output.raise_for_status()
             raw: str = output.stdout
             logger.trace(f"Raw GPG output:\n{raw}")
             return self._parse_gpg_list_cmd(raw)
@@ -252,7 +244,7 @@ class Gpg(object):
             logger.error(f"GPG command failed: {e.result.command}")
             logger.error(f"GPG stderr: {e.result.stderr}")
             logger.error(f"GPG stdout: {e.result.stdout}")
-            return []  # Return empty list on error
+            return []
         except Exception as e:
             logger.error(f"An unexpected error occurred while getting GPG keys: {e}")
             return []
