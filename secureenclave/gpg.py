@@ -15,7 +15,7 @@ import urllib.parse
 from loguru import logger
 from typing import List, Dict, Any
 
-from secureenclave.datamodel import GpgKey
+from secureenclave.datamodel import GpgKey, GpgSubkey
 
 
 __gpg_conf__: str = """use-agent
@@ -118,17 +118,20 @@ class Gpg(object):
         return self.gpg_bin
 
     def _parse_gpg_list_cmd(self, raw_output: str) -> List[GpgKey]:
-        keys_list: List[GpgKey] = []
-        current_key_details: Dict[str, Any] = {}
+        parsed_keys: List[GpgKey] = []
+        current_primary_key_data: Optional[Dict[str, Any]] = None
+        # attachment_target points to the dict (primary or subkey) that should receive next fpr/grp
+        attachment_target: Optional[Dict[str, Any]] = None
 
         for line in raw_output.splitlines():
             fields = line.strip().split(':')
-            if not fields:
+            if not fields or len(fields) < 1:
                 continue
 
             record_type = fields[0]
+
             if record_type == 'pub':
-                current_key_details = {
+                current_primary_key_data = {
                     'key_id': fields[4],
                     'algorithm_name': GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}"),
                     'key_length': int(fields[2]) if fields[2].isdigit() else 0,
@@ -138,69 +141,100 @@ class Gpg(object):
                     'capabilities': [],
                     'fingerprint': None,
                     'keygrip': None,
+                    'subkeys': [],  # Stores raw subkey dictionaries
                 }
+                attachment_target = current_primary_key_data
                 # Parse capabilities from field 11 (e.g., "scea")
                 if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
-                        current_key_details['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
-                logger.debug(f"Parsing pub key: {current_key_details['key_id']}")
+                        current_primary_key_data['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
+                logger.debug(f"Parsing pub key: {current_primary_key_data['key_id']}")
 
-            elif record_type == 'fpr' and current_key_details:
-                if len(fields) > 9:
-                    current_key_details['fingerprint'] = fields[9]
-                    logger.debug(f"Found fingerprint for {current_key_details.get('key_id')}: {fields[9]}")
+            elif record_type in ('sub', 'ssb'):
+                if not current_primary_key_data:
+                    logger.warning(f"Orphaned subkey record found: {line}. Skipping.")
+                    continue
+                
+                subkey_caps = []
+                if len(fields) > 11 and fields[11]:
+                    for char_code in fields[11]:
+                        subkey_caps.append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
 
-            elif record_type == 'grp' and current_key_details:
-                if len(fields) > 9:
-                    current_key_details['keygrip'] = fields[9]
-                    logger.debug(f"Found keygrip for {current_key_details.get('key_id')}: {fields[9]}")
+                current_subkey_dict = {
+                    'key_id': fields[4],
+                    'algorithm_name': GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}"),
+                    'key_length': int(fields[2]) if fields[2].isdigit() else 0,
+                    'creation_date': int(fields[5]) if fields[5].isdigit() else 0,
+                    'expiration_date': int(fields[6]) if fields[6].isdigit() else None,
+                    'capabilities': subkey_caps,
+                    'fingerprint': None,
+                    'keygrip': None,
+                }
+                current_primary_key_data['subkeys'].append(current_subkey_dict)
+                attachment_target = current_subkey_dict
+                logger.debug(f"Parsing subkey: {current_subkey_dict['key_id']} for pub {current_primary_key_data['key_id']}")
 
-            elif record_type == 'uid' and current_key_details and 'key_id' in current_key_details:
-                uid_string = ""
-                if len(fields) > 9:  # GnuPG 2.1+ format
-                    uid_string = urllib.parse.unquote_plus(fields[9])
-                elif len(fields) > 7:  # Older GnuPG format might have UID in field 7
-                    uid_string = urllib.parse.unquote_plus(fields[7])
+            elif record_type == 'fpr':
+                if attachment_target and len(fields) > 9:
+                    fingerprint_val = fields[9]
+                    attachment_target['fingerprint'] = fingerprint_val
+                    logger.debug(f"Found fingerprint for {attachment_target.get('key_id')}: {fingerprint_val}")
+                else:
+                    logger.warning(f"Orphaned fingerprint record or missing target: {line}")
+            
+            elif record_type == 'grp':
+                if attachment_target and len(fields) > 9:
+                    keygrip_val = fields[9]
+                    attachment_target['keygrip'] = keygrip_val
+                    logger.debug(f"Found keygrip for {attachment_target.get('key_id')}: {keygrip_val}")
+                else:
+                    logger.warning(f"Orphaned keygrip record or missing target: {line}")
 
+            elif record_type == 'uid':
+                if not current_primary_key_data:
+                    logger.warning(f"Orphaned UID record found: {line}. Skipping.")
+                    continue
+
+                uid_string = urllib.parse.unquote_plus(fields[9]) if len(fields) > 9 else ""
                 uid_validity_char = fields[1]
                 uid_validity = GPG_VALIDITY_MAP.get(uid_validity_char, "unknown validity")
 
                 if not uid_string:
-                    logger.warning(f"Skipping UID for key {current_key_details['key_id']} due to empty UID string. Line: {line}")
+                    logger.warning(f"Skipping UID for key {current_primary_key_data['key_id']} due to empty UID string. Line: {line}")
                     continue
+
+                # Convert raw subkey dicts to GpgSubkey objects
+                subkeys_list = []
+                for sub_dict in current_primary_key_data.get('subkeys', []):
+                    subkeys_list.append(GpgSubkey(**sub_dict))
 
                 gpg_key = GpgKey(
                     uid=uid_string,
-                    key_id=current_key_details['key_id'],
-                    fingerprint=current_key_details.get('fingerprint'),
+                    key_id=current_primary_key_data['key_id'],
+                    fingerprint=current_primary_key_data.get('fingerprint'),
                     uid_validity=uid_validity,
-                    owner_trust=current_key_details.get('owner_trust'),
-                    algorithm_name=current_key_details['algorithm_name'],
-                    key_length=current_key_details['key_length'],
-                    creation_date=current_key_details['creation_date'],
-                    expiration_date=current_key_details.get('expiration_date'),
-                    capabilities=current_key_details.get('capabilities', []),
-                    keygrip=current_key_details.get('keygrip')
+                    owner_trust=current_primary_key_data.get('owner_trust'),
+                    algorithm_name=current_primary_key_data['algorithm_name'],
+                    key_length=current_primary_key_data['key_length'],
+                    creation_date=current_primary_key_data['creation_date'],
+                    expiration_date=current_primary_key_data.get('expiration_date'),
+                    capabilities=current_primary_key_data.get('capabilities', []),
+                    keygrip=current_primary_key_data.get('keygrip'),
+                    subkeys=subkeys_list
                 )
-                keys_list.append(gpg_key)
-                logger.debug(f"Added GpgKey: {uid_string} for key {current_key_details['key_id']}")
+                parsed_keys.append(gpg_key)
+                logger.debug(f"Added GpgKey: {uid_string} for key {current_primary_key_data['key_id']} with {len(subkeys_list)} subkeys")
+                # After a UID, subsequent fpr/grp should ideally target the primary key again
+                # if they appear before a new 'sub' or 'pub'.
+                attachment_target = current_primary_key_data
 
-            elif record_type in ('sub', 'ssb'):  # Subkey, reset current_key_details to avoid associating UIDs with subkeys
-                # For now, we are not parsing subkeys into GpgKey objects in this list.
-                # If subkeys were to be listed, they'd need their own 'fpr', 'grp' etc.
-                # Resetting current_key_details ensures subsequent UIDs are not wrongly associated.
-                # However, GPG lists UIDs under their primary key, not subkeys.
-                # So, this might not be strictly necessary unless the output format changes.
-                # For safety, we can clear parts that are subkey-specific if we were to process them.
-                # For now, we assume UIDs always belong to the last 'pub' key.
-                pass
 
-        if not keys_list and raw_output:
+        if not parsed_keys and raw_output:
             logger.debug("No keys found or parsed from GPG output.")
         elif not raw_output:
             logger.debug("GPG output was empty.")
 
-        return keys_list
+        return parsed_keys
 
     def get_keys(self) -> List[GpgKey]:
         # Use --with-colons for machine-readable output
