@@ -160,7 +160,6 @@ class Gpg(object):
                 elif is_secret_record:
                     primary_keys_info[pk_id]['secret_available'] = True
 
-
                 primary_keys_info[pk_id]['algorithm_name'] = GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}")
                 primary_keys_info[pk_id]['key_length'] = int(fields[2]) if fields[2].isdigit() else 0
                 primary_keys_info[pk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
