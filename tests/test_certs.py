@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# Copyright: (c) 2025, Gonzalo Alvarez
 
 import pytest
 import datetime
