@@ -118,9 +118,9 @@ class Gpg(object):
         return self.gpg_bin
 
     def _parse_gpg_list_cmd(self, raw_output: str) -> List[GpgKey]:
-        parsed_keys: List[GpgKey] = []
-        current_primary_key_data: Optional[Dict[str, Any]] = None
-        attachment_target: Optional[Dict[str, Any]] = None
+        primary_keys_info: Dict[str, Dict[str, Any]] = {}
+        current_pk_id_active: Optional[str] = None
+        attachment_target_dict: Optional[Dict[str, Any]] = None
 
         for line in raw_output.splitlines():
             fields = line.strip().split(':')
@@ -129,69 +129,103 @@ class Gpg(object):
 
             record_type = fields[0]
 
-            if record_type == 'pub':
-                current_primary_key_data = {
-                    'key_id': fields[4],
-                    'algorithm_name': GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}"),
-                    'key_length': int(fields[2]) if fields[2].isdigit() else 0,
-                    'creation_date': int(fields[5]) if fields[5].isdigit() else 0,
-                    'expiration_date': int(fields[6]) if fields[6].isdigit() else None,
-                    'owner_trust': GPG_OWNERTRUST_MAP.get(fields[8], "unknown") if len(fields) > 8 else "unknown",
-                    'capabilities': [],
-                    'fingerprint': None,
-                    'keygrip': None,
-                    'subkeys': [],
-                }
-                attachment_target = current_primary_key_data
-                # Parse capabilities from field 11 (e.g., "scea")
+            if record_type in ('pub', 'sec'):
+                pk_id = fields[4]
+                current_pk_id_active = pk_id
+                is_secret_record = (record_type == 'sec')
+
+                if pk_id not in primary_keys_info:
+                    primary_keys_info[pk_id] = {
+                        'key_id': pk_id,
+                        'algorithm_name': GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}"),
+                        'key_length': int(fields[2]) if fields[2].isdigit() else 0,
+                        'creation_date': int(fields[5]) if fields[5].isdigit() else 0,
+                        'expiration_date': int(fields[6]) if fields[6].isdigit() else None,
+                        'owner_trust': GPG_OWNERTRUST_MAP.get(fields[8], "unknown") if len(fields) > 8 else "unknown",
+                        'capabilities': [],
+                        'fingerprint': None,
+                        'keygrip': None,
+                        'is_secret': is_secret_record,
+                        'uids': [],
+                        'subkeys': {},  # Stores subkey data dicts, keyed by subkey_id
+                    }
+                else:
+                    # Update existing entry, especially is_secret
+                    primary_keys_info[pk_id]['is_secret'] = primary_keys_info[pk_id]['is_secret'] or is_secret_record
+                    # Re-parse fields that might differ or be more complete in a 'sec' record (though usually not)
+                    primary_keys_info[pk_id]['algorithm_name'] = GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}")
+                    primary_keys_info[pk_id]['key_length'] = int(fields[2]) if fields[2].isdigit() else 0
+                    primary_keys_info[pk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
+                    primary_keys_info[pk_id]['expiration_date'] = int(fields[6]) if fields[6].isdigit() else None
+                    primary_keys_info[pk_id]['owner_trust'] = GPG_OWNERTRUST_MAP.get(fields[8], "unknown") if len(fields) > 8 else "unknown"
+                    # Capabilities might be additive or different, clear and re-add for simplicity
+                    primary_keys_info[pk_id]['capabilities'] = []
+
+
+                pk_entry_ref = primary_keys_info[pk_id]
                 if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
-                        current_primary_key_data['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
-                logger.debug(f"Parsing pub key: {current_primary_key_data['key_id']}")
+                        pk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
+                
+                attachment_target_dict = pk_entry_ref
+                logger.debug(f"Processed {record_type} key: {pk_id}, is_secret: {pk_entry_ref['is_secret']}")
 
             elif record_type in ('sub', 'ssb'):
-                if not current_primary_key_data:
-                    logger.warning(f"Orphaned subkey record found: {line}. Skipping.")
+                if not current_pk_id_active:
+                    logger.warning(f"Orphaned subkey record: {line}. Skipping.")
                     continue
+                
+                sk_id = fields[4]
+                is_secret_subkey_record = (record_type == 'ssb')
+                pk_entry_ref = primary_keys_info[current_pk_id_active]
 
-                subkey_caps = []
-                if len(fields) > 11 and fields[11]:
+                if sk_id not in pk_entry_ref['subkeys']:
+                    pk_entry_ref['subkeys'][sk_id] = {
+                        'key_id': sk_id,
+                        'algorithm_name': GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}"),
+                        'key_length': int(fields[2]) if fields[2].isdigit() else 0,
+                        'creation_date': int(fields[5]) if fields[5].isdigit() else 0,
+                        'expiration_date': int(fields[6]) if fields[6].isdigit() else None,
+                        'capabilities': [],
+                        'fingerprint': None,
+                        'keygrip': None,
+                        'is_secret': is_secret_subkey_record,
+                    }
+                else:
+                    pk_entry_ref['subkeys'][sk_id]['is_secret'] = pk_entry_ref['subkeys'][sk_id]['is_secret'] or is_secret_subkey_record
+                    # Re-parse fields for subkey
+                    pk_entry_ref['subkeys'][sk_id]['algorithm_name'] = GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}")
+                    pk_entry_ref['subkeys'][sk_id]['key_length'] = int(fields[2]) if fields[2].isdigit() else 0
+                    pk_entry_ref['subkeys'][sk_id]['creation_date'] = int(fields[5]) if fields[5].isdigit() else 0
+                    pk_entry_ref['subkeys'][sk_id]['expiration_date'] = int(fields[6]) if fields[6].isdigit() else None
+                    pk_entry_ref['subkeys'][sk_id]['capabilities'] = []
+
+
+                sk_entry_ref = pk_entry_ref['subkeys'][sk_id]
+                if len(fields) > 11 and fields[11]: # Subkey capabilities
                     for char_code in fields[11]:
-                        subkey_caps.append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
-
-                current_subkey_dict = {
-                    'key_id': fields[4],
-                    'algorithm_name': GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}"),
-                    'key_length': int(fields[2]) if fields[2].isdigit() else 0,
-                    'creation_date': int(fields[5]) if fields[5].isdigit() else 0,
-                    'expiration_date': int(fields[6]) if fields[6].isdigit() else None,
-                    'capabilities': subkey_caps,
-                    'fingerprint': None,
-                    'keygrip': None,
-                }
-                current_primary_key_data['subkeys'].append(current_subkey_dict)
-                attachment_target = current_subkey_dict
-                logger.debug(f"Parsing subkey: {current_subkey_dict['key_id']} for pub {current_primary_key_data['key_id']}")
+                        sk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
+                
+                attachment_target_dict = sk_entry_ref
+                logger.debug(f"Processed {record_type} subkey: {sk_id} for pk {current_pk_id_active}, is_secret: {sk_entry_ref['is_secret']}")
 
             elif record_type == 'fpr':
-                if attachment_target and len(fields) > 9:
-                    fingerprint_val = fields[9]
-                    attachment_target['fingerprint'] = fingerprint_val
-                    logger.debug(f"Found fingerprint for {attachment_target.get('key_id')}: {fingerprint_val}")
+                if attachment_target_dict and len(fields) > 9:
+                    attachment_target_dict['fingerprint'] = fields[9]
+                    logger.debug(f"Found fingerprint for {attachment_target_dict.get('key_id')}: {fields[9]}")
                 else:
-                    logger.warning(f"Orphaned fingerprint record or missing target: {line}")
-
+                    logger.warning(f"Orphaned fingerprint or no attachment target: {line}")
+            
             elif record_type == 'grp':
-                if attachment_target and len(fields) > 9:
-                    keygrip_val = fields[9]
-                    attachment_target['keygrip'] = keygrip_val
-                    logger.debug(f"Found keygrip for {attachment_target.get('key_id')}: {keygrip_val}")
+                if attachment_target_dict and len(fields) > 9:
+                    attachment_target_dict['keygrip'] = fields[9]
+                    logger.debug(f"Found keygrip for {attachment_target_dict.get('key_id')}: {fields[9]}")
                 else:
-                    logger.warning(f"Orphaned keygrip record or missing target: {line}")
+                    logger.warning(f"Orphaned keygrip or no attachment target: {line}")
 
             elif record_type == 'uid':
-                if not current_primary_key_data:
-                    logger.warning(f"Orphaned UID record found: {line}. Skipping.")
+                if not current_pk_id_active:
+                    logger.warning(f"Orphaned UID record: {line}. Skipping.")
                     continue
 
                 uid_string = urllib.parse.unquote_plus(fields[9]) if len(fields) > 9 else ""
@@ -199,40 +233,47 @@ class Gpg(object):
                 uid_validity = GPG_VALIDITY_MAP.get(uid_validity_char, "unknown validity")
 
                 if not uid_string:
-                    logger.warning(f"Skipping UID for key {current_primary_key_data['key_id']} due to empty UID string. Line: {line}")
+                    logger.warning(f"Skipping UID for key {current_pk_id_active} due to empty UID string. Line: {line}")
                     continue
+                
+                primary_keys_info[current_pk_id_active]['uids'].append({
+                    'uid_text': uid_string,
+                    'uid_validity': uid_validity,
+                })
+                attachment_target_dict = primary_keys_info[current_pk_id_active] # Reset target to primary key
+                logger.debug(f"Processed UID: '{uid_string}' for pk {current_pk_id_active}")
 
-                subkeys_list = []
-                for sub_dict in current_primary_key_data.get('subkeys', []):
-                    subkeys_list.append(GpgSubkey(**sub_dict))
-
-                gpg_key = GpgKey(
-                    uid=uid_string,
-                    key_id=current_primary_key_data['key_id'],
-                    fingerprint=current_primary_key_data.get('fingerprint'),
-                    uid_validity=uid_validity,
-                    owner_trust=current_primary_key_data.get('owner_trust'),
-                    algorithm_name=current_primary_key_data['algorithm_name'],
-                    key_length=current_primary_key_data['key_length'],
-                    creation_date=current_primary_key_data['creation_date'],
-                    expiration_date=current_primary_key_data.get('expiration_date'),
-                    capabilities=current_primary_key_data.get('capabilities', []),
-                    keygrip=current_primary_key_data.get('keygrip'),
-                    subkeys=subkeys_list
+        # Construct final GpgKey objects
+        final_gpg_keys: List[GpgKey] = []
+        for pk_id, pk_data_dict in primary_keys_info.items():
+            subkeys_obj_list: List[GpgSubkey] = []
+            for sk_id, sk_data_dict in pk_data_dict.get('subkeys', {}).items():
+                subkeys_obj_list.append(GpgSubkey(**sk_data_dict))
+            
+            # Create a GpgKey object for each UID associated with this primary key
+            if not pk_data_dict.get('uids'):
+                 logger.warning(f"Primary key {pk_id} has no UIDs. Skipping GpgKey object creation for it directly, though its subkeys are parsed.")
+            for uid_info in pk_data_dict.get('uids', []):
+                # Prepare pk_data_dict for GpgKey constructor by removing non-GpgKey fields
+                constructor_pk_data = {k: v for k, v in pk_data_dict.items() if k not in ['uids', 'subkeys']}
+                
+                gpg_key_obj = GpgKey(
+                    uid=uid_info['uid_text'],
+                    uid_validity=uid_info['uid_validity'],
+                    subkeys=subkeys_obj_list,
+                    **constructor_pk_data
                 )
-                parsed_keys.append(gpg_key)
-                logger.debug(f"Added GpgKey: {uid_string} for key {current_primary_key_data['key_id']} with {len(subkeys_list)} subkeys")
-                attachment_target = current_primary_key_data
-
-        if not parsed_keys and raw_output:
-            logger.debug("No keys found or parsed from GPG output.")
+                final_gpg_keys.append(gpg_key_obj)
+        
+        if not final_gpg_keys and raw_output:
+            logger.debug("No GPG keys with UIDs were fully parsed from GPG output.")
         elif not raw_output:
             logger.debug("GPG output was empty.")
-
-        return parsed_keys
+            
+        return final_gpg_keys
 
     def get_keys(self) -> List[GpgKey]:
-        gpg_cmd = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-keys'
+        gpg_cmd = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-keys --list-secret-keys'
         logger.debug(f"Executing GPG command: {gpg_cmd}")
         try:
             output = invoke.run(gpg_cmd, env=self.getenv(), hide=True, warn=True)
