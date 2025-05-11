@@ -47,11 +47,9 @@ keytocard
 save
 """
 
-# Mappings for GPG --with-colons output
 GPG_ALGORITHM_NAME_MAP: Dict[str, str] = {
     "1": "RSA", "2": "RSA-E", "3": "RSA-S", "16": "ELG-E", "17": "DSA",
     "18": "ECC", "19": "ECDSA", "20": "ELG", "21": "PAD", "22": "EDDSA",
-    # Add others as needed
 }
 
 GPG_VALIDITY_MAP: Dict[str, str] = {
@@ -67,19 +65,19 @@ GPG_VALIDITY_MAP: Dict[str, str] = {
     'f': "fully valid",
     'u': "ultimately valid",
     's': "special validity",
-    'w': "well-known public key",  # GnuPG specific
+    'w': "well-known public key", 
 }
 
 GPG_OWNERTRUST_MAP: Dict[str, str] = {
     '-': "unknown",
-    'o': "unknown",  # GnuPG specific for "not enough information"
+    'o': "unknown",
     'q': "undefined",
     'n': "not trusted",
     'm': "marginally trusted",
     'f': "fully trusted",
     'u': "ultimately trusted",
-    'e': "expired",  # GnuPG specific for expired trust signature
-    'r': "revoked",  # GnuPG specific for revoked trust signature
+    'e': "expired",
+    'r': "revoked",
 }
 
 GPG_CAPABILITY_MAP: Dict[str, str] = {
@@ -87,7 +85,7 @@ GPG_CAPABILITY_MAP: Dict[str, str] = {
     's': "sign",
     'c': "certify",
     'a': "authenticate",
-    't': "set-primary-uid",  # GnuPG specific, often on self-signatures
+    't': "set-primary-uid",
     '?': "unknown"
 }
 
@@ -129,9 +127,7 @@ class Gpg(object):
                 continue
 
             record_type = fields[0]
-
             if record_type == 'pub':
-                # Start of a new public key block
                 current_key_details = {
                     'key_id': fields[4],
                     'algorithm_name': GPG_ALGORITHM_NAME_MAP.get(fields[3], f"unknown_algo_{fields[3]}"),
@@ -140,8 +136,8 @@ class Gpg(object):
                     'expiration_date': int(fields[6]) if fields[6].isdigit() else None,
                     'owner_trust': GPG_OWNERTRUST_MAP.get(fields[8], "unknown") if len(fields) > 8 else "unknown",
                     'capabilities': [],
-                    'fingerprint': None,  # Will be filled by 'fpr' record
-                    'keygrip': None,      # Will be filled by 'grp' record
+                    'fingerprint': None,
+                    'keygrip': None,
                 }
                 # Parse capabilities from field 11 (e.g., "scea")
                 if len(fields) > 11 and fields[11]:
@@ -150,19 +146,16 @@ class Gpg(object):
                 logger.debug(f"Parsing pub key: {current_key_details['key_id']}")
 
             elif record_type == 'fpr' and current_key_details:
-                # Fingerprint for the current key
                 if len(fields) > 9:
                     current_key_details['fingerprint'] = fields[9]
                     logger.debug(f"Found fingerprint for {current_key_details.get('key_id')}: {fields[9]}")
 
             elif record_type == 'grp' and current_key_details:
-                # Keygrip for the current key
                 if len(fields) > 9:
                     current_key_details['keygrip'] = fields[9]
                     logger.debug(f"Found keygrip for {current_key_details.get('key_id')}: {fields[9]}")
 
             elif record_type == 'uid' and current_key_details and 'key_id' in current_key_details:
-                # User ID for the current key
                 uid_string = ""
                 if len(fields) > 9:  # GnuPG 2.1+ format
                     uid_string = urllib.parse.unquote_plus(fields[9])
@@ -172,7 +165,7 @@ class Gpg(object):
                 uid_validity_char = fields[1]
                 uid_validity = GPG_VALIDITY_MAP.get(uid_validity_char, "unknown validity")
 
-                if not uid_string:  # Skip if UID string is empty
+                if not uid_string:
                     logger.warning(f"Skipping UID for key {current_key_details['key_id']} due to empty UID string. Line: {line}")
                     continue
 
