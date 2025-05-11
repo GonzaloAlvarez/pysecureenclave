@@ -20,7 +20,43 @@ click_loguru = ClickLoguru(__program__, __version__, stderr_format_func=lambda x
 @click.pass_context
 def key_list(ctx, **kwargs):
     with SecureEnclave() as secure_enclave:
-        secure_enclave.list_keys()
+        keys = secure_enclave.gpg.get_keys()
+        if not keys:
+            logger.info("No GPG keys found in the keyring.")
+            return
+
+        logger.info("Available GPG Keys:")
+        for key in keys:
+            key_type = "Secret" if key.is_secret else "Public"
+            logger.info(f"───────────────────────────────────────────────────────────────────────────")
+            logger.info(f"👤 UID: {key.uid}")
+            logger.info(f"   Key ID: {key.key_id} ({key_type})")
+            logger.info(f"   Fingerprint: {key.fingerprint if key.fingerprint else 'N/A'}")
+            logger.info(f"   Algorithm: {key.algorithm_name} ({key.key_length} bits)")
+            logger.info(f"   Created: {key.creation_date}") # Consider formatting date
+            if key.expiration_date:
+                logger.info(f"   Expires: {key.expiration_date}") # Consider formatting date
+            else:
+                logger.info(f"   Expires: Never")
+            logger.info(f"   Capabilities: {', '.join(key.capabilities) if key.capabilities else 'N/A'}")
+            logger.info(f"   Trust: {key.owner_trust} (UID: {key.uid_validity})")
+
+            if key.subkeys:
+                logger.info("   Subkeys:")
+                for subkey in key.subkeys:
+                    subkey_type = "Secret" if subkey.is_secret else "Public"
+                    logger.info(f"     └─ Subkey ID: {subkey.key_id} ({subkey_type})")
+                    logger.info(f"        Fingerprint: {subkey.fingerprint if subkey.fingerprint else 'N/A'}")
+                    logger.info(f"        Algorithm: {subkey.algorithm_name} ({subkey.key_length} bits)")
+                    logger.info(f"        Created: {subkey.creation_date}") # Consider formatting date
+                    if subkey.expiration_date:
+                        logger.info(f"        Expires: {subkey.expiration_date}") # Consider formatting date
+                    else:
+                        logger.info(f"        Expires: Never")
+                    logger.info(f"        Capabilities: {', '.join(subkey.capabilities) if subkey.capabilities else 'N/A'}")
+            else:
+                logger.info("   No Subkeys")
+        logger.info(f"───────────────────────────────────────────────────────────────────────────")
 
 
 @click.command(name='import', help='Import key into keyring')
