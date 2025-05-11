@@ -256,20 +256,49 @@ class Gpg(object):
         return final_gpg_keys
 
     def get_keys(self) -> List[GpgKey]:
-        gpg_cmd = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-keys --list-secret-keys'
-        logger.debug(f"Executing GPG command: {gpg_cmd}")
-        try:
-            output = invoke.run(gpg_cmd, env=self.getenv(), hide=True, warn=True)
-            raw: str = output.stdout
-            logger.debug(f"Raw GPG output:\n{raw}")
-            return self._parse_gpg_list_cmd(raw)
-        except invoke.exceptions.UnexpectedExit as e:
-            logger.error(f"GPG command failed: {e.result.command}")
-            logger.error(f"GPG stderr: {e.result.stderr}")
-            logger.error(f"GPG stdout: {e.result.stdout}")
+        raw_output_parts: List[str] = []
+        base_gpg_cmd_args = [
+            self.getbin(),
+            '--with-colons',
+            '--fixed-list-mode',
+            '--with-fingerprint'
+        ]
+        common_invoke_kwargs = {'env': self.getenv(), 'hide': True, 'warn': True}
+
+        commands_to_run = [
+            (base_gpg_cmd_args + ['--list-keys'], "list-keys"),
+            (base_gpg_cmd_args + ['--list-secret-keys'], "list-secret-keys")
+        ]
+
+        for cmd_parts, desc in commands_to_run:
+            gpg_cmd_str = ' '.join(cmd_parts)
+            logger.debug(f"Executing GPG command: {gpg_cmd_str}")
+            try:
+                output = invoke.run(gpg_cmd_str, **common_invoke_kwargs)
+                if output.ok:
+                    raw_output_parts.append(output.stdout)
+                    logger.debug(f"Raw GPG output for {desc}:\n{output.stdout}")
+                else:
+                    logger.warning(f"GPG command '{gpg_cmd_str}' failed with exit code {output.return_code}.")
+                    logger.warning(f"GPG stderr for {desc}: {output.stderr}")
+            except invoke.exceptions.UnexpectedExit as e:
+                logger.error(f"GPG command '{e.result.command}' failed unexpectedly.")
+                logger.error(f"GPG stderr for {desc}: {e.result.stderr}")
+                logger.error(f"GPG stdout for {desc}: {e.result.stdout}")
+                # Depending on desired behavior, you might want to return [] here or continue
+            except Exception as e:
+                logger.error(f"An unexpected error occurred while executing GPG {desc}: {e}")
+                # Depending on desired behavior, you might want to return [] here
+
+        combined_raw_output: str = "".join(raw_output_parts)
+        if not combined_raw_output:
+            logger.debug("Combined GPG output is empty after running list-keys and list-secret-keys.")
             return []
+
+        try:
+            return self._parse_gpg_list_cmd(combined_raw_output)
         except Exception as e:
-            logger.error(f"An unexpected error occurred while getting GPG keys: {e}")
+            logger.error(f"An unexpected error occurred while parsing combined GPG key data: {e}")
             return []
 
     def card_edit(self, attribute, value):
