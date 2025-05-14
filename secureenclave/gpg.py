@@ -157,8 +157,8 @@ class Gpg(object):
                     logger.debug('Secret lives in card')
                     full_card_serial = fields[14].strip()
                     if full_card_serial and len(full_card_serial) == 32 and full_card_serial.startswith("D27600012401"):
-                         primary_keys_info[pk_id]['card_serial'] = f'{full_card_serial[16:20]} {full_card_serial[20:28]}' 
-                         logger.debug(f'Card serial: {primary_keys_info[pk_id]['card_serial']}')
+                        primary_keys_info[pk_id]['card_serial'] = f'{full_card_serial[16:20]} {full_card_serial[20:28]}'
+                        logger.debug(f'Card serial: {primary_keys_info[pk_id]['card_serial']}')
                 if not is_secret_record and primary_keys_info[pk_id].get('secret_available', False):
                     pass
                 elif is_secret_record:
