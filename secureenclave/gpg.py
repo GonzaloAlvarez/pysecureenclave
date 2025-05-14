@@ -184,7 +184,7 @@ class Gpg(object):
                 sk_id = fields[4]
                 is_secret_subkey_record = (record_type == 'ssb' and fields[14] == '+')
                 pk_entry_ref = primary_keys_info[current_pk_id_active]
-                    
+
                 if sk_id not in pk_entry_ref['subkeys']:
                     pk_entry_ref['subkeys'][sk_id] = {
                         'key_id': sk_id,
