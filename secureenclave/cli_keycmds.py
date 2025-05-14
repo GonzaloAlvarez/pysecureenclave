@@ -31,6 +31,8 @@ def key_list(ctx, **kwargs):
             logger.info("───────────────────────────────────────────────────────────────────────────")
             logger.info(f"👤 UID: {key.uid}")
             logger.info(f"   Key ID: {key.key_id} ({key_type})")
+            if key.secret_in_card and key.card_serial:
+                logger.info(f"   Secret in Card with Serial Number: {key.card_serial}")
             logger.info(f"   Fingerprint: {key.fingerprint if key.fingerprint else 'N/A'}")
             logger.info(f"   Algorithm: {key.algorithm_name} ({key.key_length} bits)")
             logger.info(f"   Created: {key.creation_date}")  # Consider formatting date

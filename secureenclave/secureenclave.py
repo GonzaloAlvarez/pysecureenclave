@@ -122,9 +122,16 @@ class SecureEnclave(object):
     def card_import_key(self):
         """Import key into smartcard"""
         keys = self.gpg.get_keys()
-        selected = Bullet('Select which key to delete: ', keys).launch()  # type:ignore
-        for key_number in 1, 2, 3:
-            self.gpg.card_key_edit(selected.fingerprint, key_number, key_number)
+        selected = Bullet('Select which key to import: ', keys).launch()  # type:ignore
+        key_index = 1
+        for subkey in selected.subkeys:
+            if 'sign' in subkey.capabilities:
+                self.gpg.card_key_edit(selected.fingerprint, key_index, 1)
+            elif 'encrypt' in subkey.capabilities:
+                self.gpg.card_key_edit(selected.fingerprint, key_index, 2)
+            elif 'auth' in subkey.capabilities:
+                self.gpg.card_key_edit(selected.fingerprint, key_index, 3)
+            key_index = key_index + 1
 
     def import_key(self, filename):
         gpg_cmd = '{} --import {}'.format(self.gpg.getbin(), filename)

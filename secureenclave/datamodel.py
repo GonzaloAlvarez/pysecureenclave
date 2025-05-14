@@ -66,19 +66,21 @@ class GpgSubkey:
 
 @dataclass
 class GpgKey:
-    uid: str  # User ID string
-    key_id: str  # Primary Key ID
-    fingerprint: Optional[str]  # Primary Key fingerprint
-    uid_validity: str  # Validity of the UID
-    owner_trust: Optional[str]  # Owner trust of the primary key
-    algorithm_name: str  # Primary key algorithm
-    key_length: int  # Primary key length in bits
-    creation_date: int  # Primary key creation date (timestamp)
-    expiration_date: Optional[int]  # Primary key expiration date (timestamp)
-    capabilities: List[str]  # Primary key capabilities
-    keygrip: Optional[str]  # Primary keygrip
-    secret_available: bool = False  # True if the secret part of this primary key is available
-    subkeys: List[GpgSubkey] = field(default_factory=list)  # List of associated subkeys
+    uid: str
+    key_id: str
+    fingerprint: Optional[str]
+    uid_validity: str
+    owner_trust: Optional[str]
+    algorithm_name: str
+    key_length: int
+    creation_date: int
+    expiration_date: Optional[int]
+    capabilities: List[str]
+    keygrip: Optional[str]
+    secret_available: bool = False
+    secret_in_card: bool = False
+    card_serial: Optional[str] = None
+    subkeys: List[GpgSubkey] = field(default_factory=list)
 
     def __str__(self):
         return f"{self.uid} ({self.key_id})"
