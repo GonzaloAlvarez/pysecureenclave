@@ -132,7 +132,7 @@ class Gpg(object):
             if record_type in ('pub', 'sec'):
                 pk_id = fields[4]
                 current_pk_id_active = pk_id
-                is_secret_record = (record_type == 'sec')
+                is_secret_record = (record_type == 'sec' and fields[14] == '+')
 
                 if pk_id not in primary_keys_info:
                     primary_keys_info[pk_id] = {
@@ -146,12 +146,19 @@ class Gpg(object):
                         'fingerprint': None,
                         'keygrip': None,
                         'secret_available': is_secret_record,
+                        'secret_in_card': 'sc' in fields[11],
                         'uids': [],
                         'subkeys': {},
                     }
                 elif is_secret_record:
                     primary_keys_info[pk_id]['secret_available'] = True
 
+                if primary_keys_info[pk_id]['secret_in_card']:
+                    logger.debug('Secret lives in card')
+                    full_card_serial = fields[14].strip()
+                    if full_card_serial and len(full_card_serial) == 32 and full_card_serial.startswith("D27600012401"):
+                        primary_keys_info[pk_id]['card_serial'] = f'{full_card_serial[16:20]} {full_card_serial[20:28]}'
+                        logger.debug(f'Card serial: {primary_keys_info[pk_id]['card_serial']}')
                 if not is_secret_record and primary_keys_info[pk_id].get('secret_available', False):
                     pass
                 elif is_secret_record:
@@ -175,7 +182,7 @@ class Gpg(object):
                     logger.warning(f"Orphaned subkey record: {line}. Skipping.")
                     continue
                 sk_id = fields[4]
-                is_secret_subkey_record = (record_type == 'ssb')
+                is_secret_subkey_record = (record_type == 'ssb' and fields[14] == '+')
                 pk_entry_ref = primary_keys_info[current_pk_id_active]
 
                 if sk_id not in pk_entry_ref['subkeys']:
@@ -267,12 +274,6 @@ class Gpg(object):
         return final_gpg_keys
 
     def _dedup_keys(self, public_keys: List[GpgKey], secret_keys: List[GpgKey]) -> List[GpgKey]:
-        """
-        Merges lists of public and secret GPG keys.
-
-        Prioritizes information from secret_keys (e.g., secret_available=True)
-        when a key exists in both lists.
-        """
         merged_keys_map: Dict[Tuple[str, str], GpgKey] = {}
 
         for pub_key in public_keys:
@@ -283,29 +284,36 @@ class Gpg(object):
             key_tuple = (sec_key.key_id, sec_key.uid)
             if key_tuple in merged_keys_map:
                 existing_key = merged_keys_map[key_tuple]
-                existing_key.secret_available = True
+                existing_key.secret_available = sec_key.secret_available
+                existing_key.card_serial = sec_key.card_serial
                 existing_subkeys_map: Dict[str, GpgSubkey] = {
                     subkey.key_id: subkey for subkey in existing_key.subkeys
                 }
 
                 for sec_subkey in sec_key.subkeys:
                     if sec_subkey.key_id in existing_subkeys_map:
-                        existing_subkeys_map[sec_subkey.key_id].secret_available = True
+                        existing_subkeys_map[sec_subkey.key_id].secret_available = sec_subkey.secret_available
                     else:
                         existing_key.subkeys.append(sec_subkey)
             else:
                 merged_keys_map[key_tuple] = sec_key
 
+        logger.debug(merged_keys_map.values())
         return list(merged_keys_map.values())
 
     def get_keys(self) -> List[GpgKey]:
         logger.info('Getting the public keys')
         command = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-keys'
         output = invoke.run(command=command, env=self.getenv(), hide=True, warn=True)
+        logger.debug(f'Public key output: {output.stdout}')
         public_keys = self._parse_gpg_list_cmd(output.stdout)
         logger.info('Retrieving the secret keys')
-        command = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-secret-keys'
+        command = f'{self.getbin()} --with-fingerprint --with-keygrip --list-secret-keys'
         output = invoke.run(command=command, env=self.getenv(), hide=True, warn=True)
+        logger.debug(f'Secret key output: {output.stdout}')
+        command = f'{self.getbin()} --with-colons --fixed-list-mode --with-keygrip --with-fingerprint --list-secret-keys'
+        output = invoke.run(command=command, env=self.getenv(), hide=True, warn=True)
+        logger.debug(f'Secret key output: {output.stdout}')
         secret_keys = self._parse_gpg_list_cmd(output.stdout)
         keys = self._dedup_keys(public_keys, secret_keys)
         return keys
@@ -317,5 +325,6 @@ class Gpg(object):
 
     def card_key_edit(self, key_id, key_number, slot_number):
         __content__ = __gpg_card_key_edit__.format(key_number, slot_number)
-        gpg_cmd = '{} --expert --batch --display-charset utf-8 --no-tty --command-fd 0 --edit-key {}'.format(self.getbin(), key_id)
-        invoke.run(gpg_cmd, env=self.getenv(), hide=True, in_stream=StringIO(__content__))
+        logger.info(__content__)
+        gpg_cmd = '{} --expert --batch --display-charset utf-8 --command-fd 0 --edit-key {}'.format(self.getbin(), key_id)
+        invoke.run(gpg_cmd, env=self.getenv(), hide=False, in_stream=StringIO(__content__))

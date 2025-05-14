@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright: (c) 2018, Gonzalo Alvarez
+# Copyright: (c) 2025, Gonzalo Alvarez
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
@@ -30,16 +30,6 @@ class ConsoleUI(object):
         return object
 
     def select_identity(self, identities, prompt_message="Select an identity: "):
-        """
-        Prompts the user to select an identity from a list.
-
-        Args:
-            identities: A list of identity dictionaries.
-            prompt_message: The message to display to the user.
-
-        Returns:
-            The selected identity dictionary, or None if no selection is made or no identities are available.
-        """
         if not identities:
             logger.info("No identities available to select.")
             return None
