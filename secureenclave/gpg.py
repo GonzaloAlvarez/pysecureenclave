@@ -117,6 +117,14 @@ class Gpg(object):
     def getbin(self):
         return self.gpg_bin
 
+    def run_cmd(self, cmd, silent=True, in_stream=None):
+        try:
+            invoke.run(cmd, env=self.getenv(), pty=not silent, hide=silent, in_stream=in_stream)
+        except Exception as e:
+            logger.warning('Invocation of GPG command has failed')
+            logger.warning(f'CMD: {cmd}')
+            logger.warning(f'Exception: {str(e)}')
+
     def _parse_gpg_list_cmd(self, raw_output: str) -> List[GpgKey]:
         primary_keys_info: Dict[str, Dict[str, Any]] = {}
         current_pk_id_active: Optional[str] = None

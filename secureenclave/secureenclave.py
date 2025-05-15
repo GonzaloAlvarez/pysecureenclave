@@ -7,7 +7,6 @@ __metaclass__ = type
 import shutil
 import platformdirs
 import invoke
-import re
 
 from loguru import logger
 from pathlib import Path
@@ -51,34 +50,10 @@ class SecureEnclave(object):
         self.smartcard = SmartCard(self.gpg)
         self.identity_manager = IdentityManager(self.home)
 
-    def is_card_installed(self):
-        """Check if a smartcard is installed"""
-        try:
-            gpg_cmd = '{} --quiet --batch --card-status --no-tty'.format(self.gpg.getbin())
-            result = invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True, hide=True)
-            if match := re.search(r'sec\s+([a-zA-Z0-9/]+)', result.stdout):  # type: ignore
-                self.card_pub = match.group(1)
-                logger.debug(f'Found key in card [{self.card_pub}]')
-            else:
-                logger.debug('Failed to match. No secure key in card')
-                logger.debug(result.stdout)  # type: ignore
-            return True
-        except Exception:
-            logger.debug('Card failed to be recognized')
-            return False
-
-    def _run_cmd(self, cmd, silent=True, in_stream=None):
-        try:
-            invoke.run(cmd, env=self.gpg.getenv(), pty=not silent, hide=silent, in_stream=in_stream)
-        except Exception as e:
-            logger.warning('Invocation of GPG command has failed')
-            logger.warning(f'CMD: {cmd}')
-            logger.warning(f'Exception: {str(e)}')
-
     def __enter__(self):
         """Enter context manager"""
         self.gpg_agent.start()
-        if self.is_card_installed():
+        if self.smartcard.is_card_installed():
             key_list = self.gpg.get_keys()
             logger.debug(key_list)
             if hasattr(self, 'card_pub') and self.card_pub and len(list(filter(lambda x: x.pub == self.card_pub, key_list))) > 0:
@@ -92,46 +67,6 @@ class SecureEnclave(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit context manager"""
         self.gpg_agent.stop()
-
-    def card_status(self):
-        """Retrieve status of smartcard """
-        gpg_cmd = '{} --quiet --batch --card-status --no-tty'.format(self.gpg.getbin())
-        invoke.run(gpg_cmd, env=self.gpg.getenv(), pty=True)
-
-    def card_list(self):
-        """List all available cards """
-        cards = self.smartcard.list_cards()
-        logger.info(f'Number of cards: {len(cards)}')
-        for idx, card in enumerate(cards):
-            dev, info = card
-            logger.info(f'Card {idx + 1}: {dev.fingerprint}')
-
-    def card_config(self, card_info):
-        """Configure smartcard with given information """
-        if card_info.first_name:
-            self.gpg.card_edit('name', f"{card_info.last_name}\n{card_info.first_name}")
-        if card_info.email:
-            self.gpg.card_edit('email', card_info.email)
-        if card_info.public_key_url:
-            self.gpg.card_edit('url', card_info.public_key_url)
-        if card_info.sex:
-            self.gpg.card_edit('sex', card_info.sex)
-        self.gpg.card_edit('lang', 'en')
-        self.gpg.card_edit('pinretrylimit', '3')
-
-    def card_import_key(self):
-        """Import key into smartcard"""
-        keys = self.gpg.get_keys()
-        selected = Bullet('Select which key to import: ', keys).launch()  # type:ignore
-        key_index = 1
-        for subkey in selected.subkeys:
-            if 'sign' in subkey.capabilities:
-                self.gpg.card_key_edit(selected.fingerprint, key_index, 1)
-            elif 'encrypt' in subkey.capabilities:
-                self.gpg.card_key_edit(selected.fingerprint, key_index, 2)
-            elif 'auth' in subkey.capabilities:
-                self.gpg.card_key_edit(selected.fingerprint, key_index, 3)
-            key_index = key_index + 1
 
     def import_key(self, filename):
         gpg_cmd = '{} --import {}'.format(self.gpg.getbin(), filename)
