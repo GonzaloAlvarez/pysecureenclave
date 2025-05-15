@@ -3,7 +3,7 @@ import click
 from click_loguru import ClickLoguru
 from loguru import logger
 from .secureenclave import SecureEnclave
-from .cui_keys import ConsoleUI_Keys, display_key
+from .cui_keys import ConsoleUI_Keys
 
 __all__ = ['key_list', 'key_del', 'key_new', 'key_trust', 'key_import']
 
@@ -25,9 +25,10 @@ def key_list(ctx, **kwargs):
             logger.info("No GPG keys found in the keyring.")
             return
 
+        console_ui_keys = ConsoleUI_Keys()
         logger.info("Available GPG Keys:")
         for key in keys:
-            display_key(key)
+            console_ui_keys.display_key(key)
         logger.info("───────────────────────────────────────────────────────────────────────────")
 
 
