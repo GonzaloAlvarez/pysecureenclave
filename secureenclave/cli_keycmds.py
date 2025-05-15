@@ -25,39 +25,10 @@ def key_list(ctx, **kwargs):
             logger.info("No GPG keys found in the keyring.")
             return
 
+        console_ui_keys = ConsoleUI_Keys()
         logger.info("Available GPG Keys:")
         for key in keys:
-            key_type = "Secret" if key.secret_available else "Public"
-            logger.info("───────────────────────────────────────────────────────────────────────────")
-            logger.info(f"👤 UID: {key.uid}")
-            logger.info(f"   Key ID: {key.key_id} ({key_type})")
-            if key.secret_in_card and key.card_serial:
-                logger.info(f"   Secret in Card with Serial Number: {key.card_serial}")
-            logger.info(f"   Fingerprint: {key.fingerprint if key.fingerprint else 'N/A'}")
-            logger.info(f"   Algorithm: {key.algorithm_name} ({key.key_length} bits)")
-            logger.info(f"   Created: {key.creation_date}")  # Consider formatting date
-            if key.expiration_date:
-                logger.info(f"   Expires: {key.expiration_date}")  # Consider formatting date
-            else:
-                logger.info("   Expires: Never")
-            logger.info(f"   Capabilities: {', '.join(key.capabilities) if key.capabilities else 'N/A'}")
-            logger.info(f"   Trust: {key.owner_trust} (UID: {key.uid_validity})")
-
-            if key.subkeys:
-                logger.info("   Subkeys:")
-                for subkey in key.subkeys:
-                    subkey_type = "Secret" if subkey.secret_available else "Public"
-                    logger.info(f"     └─ Subkey ID: {subkey.key_id} ({subkey_type})")
-                    logger.info(f"        Fingerprint: {subkey.fingerprint if subkey.fingerprint else 'N/A'}")
-                    logger.info(f"        Algorithm: {subkey.algorithm_name} ({subkey.key_length} bits)")
-                    logger.info(f"        Created: {subkey.creation_date}")  # Consider formatting date
-                    if subkey.expiration_date:
-                        logger.info(f"        Expires: {subkey.expiration_date}")  # Consider formatting date
-                    else:
-                        logger.info("        Expires: Never")
-                    logger.info(f"        Capabilities: {', '.join(subkey.capabilities) if subkey.capabilities else 'N/A'}")
-            else:
-                logger.info("   No Subkeys")
+            console_ui_keys.display_key(key)
         logger.info("───────────────────────────────────────────────────────────────────────────")
 
 
