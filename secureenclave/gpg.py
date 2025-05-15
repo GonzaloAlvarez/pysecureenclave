@@ -173,7 +173,7 @@ class Gpg(object):
                 pk_entry_ref['capabilities'] = []
                 if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
-                        pk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
+                        pk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code.lower(), f"unknown_cap_{char_code}"))
                 attachment_target_dict = pk_entry_ref
                 logger.debug(f"Processed {record_type} key: {pk_id}, secret_available: {pk_entry_ref['secret_available']}")
 
@@ -214,7 +214,7 @@ class Gpg(object):
                 sk_entry_ref['capabilities'] = []
                 if len(fields) > 11 and fields[11]:
                     for char_code in fields[11]:
-                        sk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code, f"unknown_cap_{char_code}"))
+                        sk_entry_ref['capabilities'].append(GPG_CAPABILITY_MAP.get(char_code.lower(), f"unknown_cap_{char_code}"))
                 attachment_target_dict = sk_entry_ref
                 logger.debug(f"Processed {record_type} subkey: {sk_id} for pk {current_pk_id_active}, secret_available: {sk_entry_ref['secret_available']}")
 
