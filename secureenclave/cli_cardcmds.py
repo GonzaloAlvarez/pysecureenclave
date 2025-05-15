@@ -23,7 +23,7 @@ def card_status(ctx, **kwargs):
     with SecureEnclave() as secure_enclave:
         logger.info('Waiting for smart card to be inserted')
         secure_enclave.smartcard.wait_for_it()
-        secure_enclave.card_status()
+        secure_enclave.smartcard.card_status()
 
 
 @click.command(name='list', help='List cards')
@@ -34,7 +34,7 @@ def card_list(ctx, **kwargs):
     with SecureEnclave() as secure_enclave:
         logger.info('Waiting for smart card to be inserted')
         secure_enclave.smartcard.wait_for_it()
-        secure_enclave.card_list()
+        secure_enclave.smartcard.card_list()
 
 
 @click.command(name='config', help='Configure a card attributes')
@@ -48,7 +48,7 @@ def card_config(ctx, **kwargs):
         if len(secure_enclave.smartcard.list_cards()) > 1:
             logger.info('You have more than one card installed. Unfortunately, GPG does not support it. Please, insert only one and try again')
         card_info = ConsoleUI().populate_object(CardInfo())
-        secure_enclave.card_config(card_info)
+        secure_enclave.smartcard.card_config(card_info)
 
 
 @click.command(name='importkey', help='Import a key into the smart card')
@@ -61,4 +61,4 @@ def card_import_key(ctx, **kwargs):
         secure_enclave.smartcard.wait_for_it()
         if len(secure_enclave.smartcard.list_cards()) > 1:
             logger.info('You have more than one card installed. Unfortunately, GPG does not support it. Please, insert only one and try again')
-        secure_enclave.card_import_key()
+        secure_enclave.smartcard.card_import_key()
