@@ -6,9 +6,11 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import time
+import re
 
 from loguru import logger
 from ykman.device import list_all_devices, scan_devices
+from bullet import Bullet
 
 
 class SmartCard:

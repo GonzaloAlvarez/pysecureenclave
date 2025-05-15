@@ -7,7 +7,6 @@ __metaclass__ = type
 import shutil
 import platformdirs
 import invoke
-import re
 
 from loguru import logger
 from pathlib import Path
