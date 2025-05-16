@@ -48,9 +48,6 @@ class IdentityInfo(object):
     salutation: Optional[str] = None
 
 
-from typing import Tuple
-
-
 @dataclass
 class GpgSubkey:
     key_id: str
@@ -109,7 +106,7 @@ class CardKeyDetails:
 class Card:
     reader: Optional[str] = None
     application_id: Optional[str] = None
-    application_type: Optional[str] = None # e.g. OpenPGP
+    application_type: Optional[str] = None  # e.g. OpenPGP
     version: Optional[str] = None
     manufacturer: Optional[str] = None
     serial_number: Optional[str] = None
