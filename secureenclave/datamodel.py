@@ -48,6 +48,9 @@ class IdentityInfo(object):
     salutation: Optional[str] = None
 
 
+from typing import Tuple
+
+
 @dataclass
 class GpgSubkey:
     key_id: str
@@ -93,3 +96,44 @@ class GpgKey:
 
     def __radd__(self, other):
         return other + str(self)
+
+
+@dataclass
+class CardKeyDetails:
+    key_type: str
+    fingerprint: Optional[str] = None
+    created: Optional[str] = None
+
+
+@dataclass
+class Card:
+    reader: Optional[str] = None
+    application_id: Optional[str] = None
+    application_type: Optional[str] = None # e.g. OpenPGP
+    version: Optional[str] = None
+    manufacturer: Optional[str] = None
+    serial_number: Optional[str] = None
+    cardholder_name: Optional[str] = None
+    language_prefs: Optional[str] = None
+    sex: Optional[str] = None
+    login_data: Optional[str] = None
+    url_of_public_key: Optional[str] = None
+    private_data_available: Optional[str] = None
+    signature_pin_state: Optional[str] = None
+    key_attributes_sig: Optional[str] = None
+    key_attributes_enc: Optional[str] = None
+    key_attributes_auth: Optional[str] = None
+    max_pin_lengths_sig: Optional[int] = None
+    max_pin_lengths_enc: Optional[int] = None
+    max_pin_lengths_auth: Optional[int] = None
+    pin_retry_sig: Optional[int] = None
+    pin_retry_enc: Optional[int] = None
+    pin_retry_admin: Optional[int] = None
+    signature_counter: Optional[int] = None
+    sig_key: Optional[CardKeyDetails] = None
+    enc_key: Optional[CardKeyDetails] = None
+    auth_key: Optional[CardKeyDetails] = None
+    general_key_info: Optional[str] = None
+    ca_fingerprint_1: Optional[str] = None
+    ca_fingerprint_2: Optional[str] = None
+    ca_fingerprint_3: Optional[str] = None
