@@ -173,6 +173,10 @@ class SmartCard:
         gpg_cmd = '{} --quiet --batch --card-status --no-tty'.format(self.gpg.getbin())
         result = self.gpg.run_cmd(gpg_cmd, silent=True)
 
+        if result is None:
+            logger.error("Failed to execute GPG command for card status. `run_cmd` returned None.")
+            return
+
         if result.returncode != 0:
             logger.error(f"Failed to get card status. GPG error: {result.stderr}")
             if result.stdout:
