@@ -29,9 +29,9 @@ class SmartCard:
                 devices = list_all_devices()
                 if devices:
                     logger.debug(devices)
-                    if card_not_found:
-                        logger.debug('waiting 500 milliseconds for GPG to pick up the card')
-                        time.sleep(0.5)
+                    # Always wait a bit for GPG to recognize the card after ykman detects it.
+                    logger.debug('Card detected by ykman. Waiting 1 second for GPG to pick up the card.')
+                    time.sleep(1.0)
                     return devices
             card_not_found = True
             time.sleep(0.2)
