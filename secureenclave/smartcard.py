@@ -22,9 +22,8 @@ class SmartCard:
 
     def wait_for_it(self):
         state = None
-        card_not_found = False
         while True:
-            pids, new_state = scan_devices()
+            _pids, new_state = scan_devices()  # Use _pids as pids is not used
             if new_state != state:
                 devices = list_all_devices()
                 if devices:
@@ -33,7 +32,8 @@ class SmartCard:
                     logger.debug('Card detected by ykman. Waiting 1 second for GPG to pick up the card.')
                     time.sleep(1.0)
                     return devices
-            card_not_found = True
+            # Update state for the next iteration to detect changes
+            state = new_state
             time.sleep(0.2)
 
     def list_cards(self):
