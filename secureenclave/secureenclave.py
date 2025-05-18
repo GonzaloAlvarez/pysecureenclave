@@ -61,7 +61,7 @@ class SecureEnclave(object):
             else:
                 logger.info('A card is installed. Retrieving remote key id from card')
                 gpg_cmd = '{} --quiet --card-edit --expert --batch --display-charset utf-8 --no-tty --command-fd 0'.format(self.gpg.getbin())
-                self._run_cmd(gpg_cmd, in_stream=StringIO(__gpg_fetch_key__))
+                # self.gpg.run_cmd(gpg_cmd, in_stream=StringIO(__gpg_fetch_key__))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

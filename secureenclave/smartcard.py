@@ -23,16 +23,14 @@ class SmartCard:
     def wait_for_it(self):
         state = None
         while True:
-            _pids, new_state = scan_devices()  # Use _pids as pids is not used
+            _pids, new_state = scan_devices()
             if new_state != state:
                 devices = list_all_devices()
                 if devices:
                     logger.debug(devices)
-                    # Always wait a bit for GPG to recognize the card after ykman detects it.
-                    logger.debug('Card detected by ykman. Waiting 1 second for GPG to pick up the card.')
+                    logger.debug('Card detected. Waiting 1 second for GPG to pick up the card.')
                     time.sleep(1.0)
                     return devices
-            # Update state for the next iteration to detect changes
             state = new_state
             time.sleep(0.2)
 
@@ -70,16 +68,13 @@ class SmartCard:
         for line in lines:
             parts = line.split(':', 1)
             if len(parts) < 2:
-                if "General key info" in line and current_key_context:  # Handle general key info under a key block
-                    # This is a bit of a guess, GPG output can be tricky here.
-                    # Often "General key info" is its own section or part of a subkey block.
-                    # For card status, it might be simpler or not present for the main keys.
-                    pass  # Or parse if there's a clear pattern
-                elif line.strip().startswith("created") and ":" in line and current_key_context:  # For key creation dates
+                if "General key info" in line and current_key_context:
+                    pass
+                elif line.strip().startswith("created") and ":" in line and current_key_context:
                     created_val = self._parse_field_value(parts[0].split("created", 1)[-1].strip(". :"))
                     if created_val and current_key_context:
                         current_key_context.created = created_val
-                    current_key_context = None  # Reset after processing 'created'
+                    current_key_context = None
                 continue
 
             key = parts[0].strip()
@@ -143,8 +138,6 @@ class SmartCard:
             elif key == "PIN retry counter":
                 if value:
                     retries = value.split()
-                    # Format can be "S E A" or "S E A K" (Sig, Enc, Admin, KDF)
-                    # We are interested in S, E, A
                     if len(retries) > 0 and retries[0].isdigit():
                         card.pin_retry_sig = int(retries[0])
                     if len(retries) > 1 and retries[1].isdigit():
@@ -160,11 +153,11 @@ class SmartCard:
             elif key == "Authentication key":
                 card.auth_key = CardKeyDetails(key_type="Authentication", fingerprint=value)
                 current_key_context = card.auth_key
-            elif key == "created" and current_key_context:  # Handles 'created' on its own line or as part of key line
+            elif key == "created" and current_key_context:
                 current_key_context.created = value
-                current_key_context = None  # Reset after processing 'created'
-            else:  # Reset context if an unrelated line or a new key line appears
-                if not (key.endswith("key") and "key" in key.lower()):  # avoid resetting if it's a key line itself
+                current_key_context = None
+            else:
+                if not (key.endswith("key") and "key" in key.lower()):
                     current_key_context = None
         return card
 
@@ -177,7 +170,7 @@ class SmartCard:
             logger.error("Failed to execute GPG command for card status. `run_cmd` returned None.")
             return
 
-        if result.returncode != 0:
+        if result.return_code != 0:
             logger.error(f"Failed to get card status. GPG error: {result.stderr}")
             if result.stdout:
                 logger.error(f"GPG stdout: {result.stdout}")
