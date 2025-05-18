@@ -117,7 +117,7 @@ class Gpg(object):
     def getbin(self):
         return self.gpg_bin
 
-    def run_cmd(self, cmd, silent=True, in_stream=None) -> (invoke.Result|None):
+    def run_cmd(self, cmd, silent=True, in_stream=None) -> (invoke.Result | None):
         try:
             result = invoke.run(cmd, env=self.getenv(), pty=not silent, hide=silent, in_stream=in_stream)
             return result
