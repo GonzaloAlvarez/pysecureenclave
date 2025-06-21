@@ -24,7 +24,7 @@ click_loguru = ClickLoguru(__program__, __version__, stderr_format_func=lambda x
 def id_new(ctx, **kwargs):
     """Creates a new identity and stores it."""
     identity_info = ConsoleUI().populate_object(IdentityInfo())
-    with SecureEnclave() as secure_enclave:
+    with SecureEnclave(base_path=ctx.obj.base_path) as secure_enclave:
         secure_enclave.identity_manager.save_identity(identity_info)
     logger.info(f"Identity for {identity_info.first_name} {identity_info.last_name} created.")
 
@@ -35,7 +35,7 @@ def id_new(ctx, **kwargs):
 @click.pass_context
 def id_list(ctx, **kwargs):
     """Lists all identities stored in the database."""
-    with SecureEnclave() as secure_enclave:
+    with SecureEnclave(base_path=ctx.obj.base_path) as secure_enclave:
         identities = secure_enclave.identity_manager.list_identities()
         if not identities:
             logger.info("No identities found.")
@@ -53,7 +53,7 @@ def id_list(ctx, **kwargs):
 @click.pass_context
 def id_del(ctx, **kwargs):
     """Deletes an existing identity after user selection and confirmation."""
-    with SecureEnclave() as secure_enclave:
+    with SecureEnclave(base_path=ctx.obj.base_path) as secure_enclave:
         identities = secure_enclave.identity_manager.list_identities()
         if not identities:
             logger.info("No identities found to delete.")

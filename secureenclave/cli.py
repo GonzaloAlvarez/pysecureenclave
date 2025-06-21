@@ -1,6 +1,7 @@
 """Console script for pysecureenclave."""
 import sys
 import click
+
 from click_loguru import ClickLoguru
 from .secureenclave import SecureEnclave
 from .cli_keycmds import key_list, key_del, key_new, key_trust, key_import
@@ -20,9 +21,10 @@ click_loguru = ClickLoguru(__program__, __version__, stderr_format_func=lambda x
 @click_loguru.stash_subcommand()
 @click_loguru.init_logger(logfile=False)
 @click.version_option(prog_name=__program__, version=__version__)
+@click.option('-b', '--base-path', type=click.Path(exists=True), help='GPG config base path')
 @click.pass_context
-def cli(ctx, **kwargs):
-    pass
+def cli(ctx, base_path=None, **kwargs):
+    ctx.obj.base_path = base_path
 
 
 @cli.command(name='enc', help='Encrypt file')
@@ -48,7 +50,6 @@ def dec(ctx, input_file, output_file, **kwargs):
 
 
 @cli.group(help='Key related operations')
-@click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
 def key(ctx, **kwargs):
@@ -63,7 +64,6 @@ key.add_command(key_import)
 
 
 @cli.group(help='Smart Card related operations')
-@click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
 def card(ctx, **kwargs):
@@ -77,7 +77,6 @@ card.add_command(card_import_key)
 
 
 @cli.group(help='Certificate related opertations')
-@click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
 def cert(ctx, **kwargs):
@@ -89,7 +88,6 @@ cert.add_command(cert_newserver)
 
 
 @cli.group(help='Identity related operations')
-@click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
 def id(ctx, **kwargs):
@@ -102,7 +100,6 @@ id.add_command(id_del)
 
 
 @cli.command(name='purge', help='Removes configuration from this machine, including all trusted keys')
-@click_loguru.logging_options
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
 def purge(ctx, **kwargs):
@@ -110,4 +107,4 @@ def purge(ctx, **kwargs):
 
 
 if __name__ == "__main__":
-    sys.exit(cli(obj={}))  # pragma: no cover
+    sys.exit(cli(obj=type('', (), {})))  # pragma: no cover

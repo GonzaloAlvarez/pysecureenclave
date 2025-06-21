@@ -2,12 +2,10 @@
 # -*- coding: utf-8 -*-
 # Copyright: (c) 2025, Gonzalo Alvarez
 
-import pytest
-from pathlib import Path
 from typing import List, Optional
 
-from secureenclave.gpg import Gpg
 from secureenclave.datamodel import GpgKey, GpgSubkey
+from secureenclave.key_parser import _dedup_keys
 
 
 def create_subkey(
@@ -67,58 +65,53 @@ def create_key(
     )
 
 
-@pytest.fixture
-def gpg_instance():
-    """Provides a Gpg instance for tests."""
-    return Gpg(homepath=Path("/tmp/dummy_gpg_home_for_tests"))
-
-
-def test_dedup_keys_empty_lists(gpg_instance):
+# Tests for _dedup_keys (moved from test_gpg.py)
+def test_dedup_keys_empty_lists():
     """Test _dedup_keys with empty public and secret key lists."""
     public_keys = []
     secret_keys = []
-    result = gpg_instance._dedup_keys(public_keys, secret_keys)
+    result = _dedup_keys(public_keys, secret_keys)
     assert result == []
 
 
-def test_dedup_keys_only_public_keys(gpg_instance):
+def test_dedup_keys_only_public_keys():
     """Test _dedup_keys with only public keys."""
     pub_key1 = create_key(key_id="pub1", uid="user1@example.com", secret_available=False)
     public_keys = [pub_key1]
     secret_keys = []
-    result = gpg_instance._dedup_keys(public_keys, secret_keys)
+    result = _dedup_keys(public_keys, secret_keys)
     assert len(result) == 1
     assert result[0].key_id == "pub1"
     assert result[0].uid == "user1@example.com"
     assert not result[0].secret_available
 
 
-def test_dedup_keys_only_secret_keys(gpg_instance):
+def test_dedup_keys_only_secret_keys():
     """Test _dedup_keys with only secret keys."""
     sec_key1 = create_key(key_id="sec1", uid="user2@example.com", secret_available=True)
     public_keys = []
     secret_keys = [sec_key1]
-    result = gpg_instance._dedup_keys(public_keys, secret_keys)
+    result = _dedup_keys(public_keys, secret_keys)
     assert len(result) == 1
     assert result[0].key_id == "sec1"
     assert result[0].uid == "user2@example.com"
     assert result[0].secret_available
 
 
-def test_dedup_keys_public_and_secret_no_overlap(gpg_instance):
+def test_dedup_keys_public_and_secret_no_overlap():
     """Test _dedup_keys with non-overlapping public and secret keys."""
     pub_key1 = create_key(key_id="pub1", uid="user1@example.com", secret_available=False)
     sec_key1 = create_key(key_id="sec1", uid="user2@example.com", secret_available=True)
     public_keys = [pub_key1]
     secret_keys = [sec_key1]
-    result = gpg_instance._dedup_keys(public_keys, secret_keys)
+    result = _dedup_keys(public_keys, secret_keys)
     assert len(result) == 2
     key_ids = {key.key_id for key in result}
     assert "pub1" in key_ids
     assert "sec1" in key_ids
 
 
-def test_dedup_keys_overlap_secret_takes_precedence_for_primary_key(gpg_instance):
+def test_dedup_keys_overlap_secret_takes_precedence_for_primary_key():
     """Test that secret key's 'secret_available' status takes precedence for the primary key."""
     shared_id = "shared_key"
     shared_uid = "shared@example.com"
@@ -126,7 +119,7 @@ def test_dedup_keys_overlap_secret_takes_precedence_for_primary_key(gpg_instance
     sec_key = create_key(key_id=shared_id, uid=shared_uid, secret_available=True)
     public_keys = [pub_key]
     secret_keys = [sec_key]
-    result = gpg_instance._dedup_keys(public_keys, secret_keys)
+    result = _dedup_keys(public_keys, secret_keys)
     assert len(result) == 1
     merged_key = result[0]
     assert merged_key.key_id == shared_id
@@ -134,7 +127,7 @@ def test_dedup_keys_overlap_secret_takes_precedence_for_primary_key(gpg_instance
     assert merged_key.secret_available
 
 
-def test_dedup_keys_overlap_subkeys_merge_secret_status(gpg_instance):
+def test_dedup_keys_overlap_subkeys_merge_secret_status():
     """Test merging of subkeys, prioritizing secret key's 'secret_available' status."""
     shared_id = "key_with_subkeys"
     shared_uid = "subkeys@example.com"
@@ -150,7 +143,7 @@ def test_dedup_keys_overlap_subkeys_merge_secret_status(gpg_instance):
 
     public_keys = [pub_key]
     secret_keys = [sec_key]
-    result = gpg_instance._dedup_keys(public_keys, secret_keys)
+    result = _dedup_keys(public_keys, secret_keys)
 
     assert len(result) == 1
     merged_key = result[0]
@@ -162,7 +155,7 @@ def test_dedup_keys_overlap_subkeys_merge_secret_status(gpg_instance):
     assert not subkeys_map[subkey2_id].secret_available
 
 
-def test_dedup_keys_secret_key_has_new_subkey_not_in_public(gpg_instance):
+def test_dedup_keys_secret_key_has_new_subkey_not_in_public():
     """Test when secret key introduces a new subkey not present in public key's version."""
     shared_id = "key_new_subkey_in_secret"
     shared_uid = "newsubkey@example.com"
@@ -177,7 +170,7 @@ def test_dedup_keys_secret_key_has_new_subkey_not_in_public(gpg_instance):
 
     public_keys = [pub_key]
     secret_keys = [sec_key]
-    result = gpg_instance._dedup_keys(public_keys, secret_keys)
+    result = _dedup_keys(public_keys, secret_keys)
 
     assert len(result) == 1
     merged_key = result[0]
@@ -191,7 +184,7 @@ def test_dedup_keys_secret_key_has_new_subkey_not_in_public(gpg_instance):
     assert subkeys_map[sec_only_subkey_id].secret_available
 
 
-def test_dedup_keys_public_key_has_subkey_not_in_secret(gpg_instance):
+def test_dedup_keys_public_key_has_subkey_not_in_secret():
     """Test when public key has a subkey not mentioned in the secret key's version."""
     shared_id = "key_pub_has_extra_subkey"
     shared_uid = "pubextrasub@example.com"
@@ -207,7 +200,7 @@ def test_dedup_keys_public_key_has_subkey_not_in_secret(gpg_instance):
 
     public_keys = [pub_key]
     secret_keys = [sec_key]
-    result = gpg_instance._dedup_keys(public_keys, secret_keys)
+    result = _dedup_keys(public_keys, secret_keys)
 
     assert len(result) == 1
     merged_key = result[0]
@@ -221,7 +214,7 @@ def test_dedup_keys_public_key_has_subkey_not_in_secret(gpg_instance):
     assert not subkeys_map[pub_only_subkey_id].secret_available
 
 
-def test_dedup_keys_different_uids_same_keyid_treated_as_distinct(gpg_instance):
+def test_dedup_keys_different_uids_same_keyid_treated_as_distinct():
     """Test that keys with the same key_id but different UIDs are treated as distinct keys."""
     same_key_id = "same_key"
     uid1 = "user1@example.com"
@@ -232,7 +225,7 @@ def test_dedup_keys_different_uids_same_keyid_treated_as_distinct(gpg_instance):
 
     public_keys = [key_uid1, key_uid2]
     secret_keys = []
-    result = gpg_instance._dedup_keys(public_keys, secret_keys)
+    result = _dedup_keys(public_keys, secret_keys)
 
     assert len(result) == 2
     uids_in_result = {key.uid for key in result}
@@ -243,7 +236,7 @@ def test_dedup_keys_different_uids_same_keyid_treated_as_distinct(gpg_instance):
     assert same_key_id in key_ids_in_result
 
 
-def test_dedup_keys_complex_merge_scenario(gpg_instance):
+def test_dedup_keys_complex_merge_scenario():
     """Test a more complex scenario involving multiple keys and subkey merging rules."""
     pub_k1 = create_key("k1", "uid1@test.com", False, [create_subkey("sk1_1", False), create_subkey("sk1_2", False)])
     pub_k2 = create_key("k2", "uid2@test.com", False, [create_subkey("sk2_1", False)])
@@ -255,7 +248,7 @@ def test_dedup_keys_complex_merge_scenario(gpg_instance):
     public_keys = [pub_k1, pub_k2, pub_k3]
     secret_keys = [sec_k1, sec_k4]
 
-    result = gpg_instance._dedup_keys(public_keys, secret_keys)
+    result = _dedup_keys(public_keys, secret_keys)
     assert len(result) == 4
 
     result_map = {(k.key_id, k.uid): k for k in result}
@@ -283,3 +276,20 @@ def test_dedup_keys_complex_merge_scenario(gpg_instance):
     assert len(merged_k4.subkeys) == 1
     assert merged_k4.subkeys[0].secret_available
     assert merged_k4.subkeys[0].key_id == "sk4_1"
+
+# TODO: Add tests for _parse_gpg_list_cmd here
+# For example:
+# def test_parse_gpg_list_cmd_empty_output():
+#     assert _parse_gpg_list_cmd("") == []
+#
+# def test_parse_gpg_list_cmd_single_key_no_subkeys():
+#     raw_output = """
+# trd:1:1719000000:1609459200:3:
+# pub:u:4096:1:AABBCCDD11223344:1609459200:1700000000::u:::scESC:
+# fpr:::::::::AABBCCDD11223344AABBCCDD11223344AABBCCDD:
+# grp:::::::::GGGGHHHHIIIIJJJJKKKKLLLLMMMMNNNNOOOOPPPP:
+# uid:u::::1609459200::Description <email@example.com>:
+# """
+#     keys = _parse_gpg_list_cmd(raw_output)
+#     assert len(keys) == 1
+#     # Add more assertions for key properties
