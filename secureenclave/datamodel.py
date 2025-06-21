@@ -45,7 +45,7 @@ class IdentityInfo(object):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email: Optional[str] = None
-    salutation: Optional[str] = None
+    salutation: Optional[str] = field(default=None, metadata={'bullet_options': ['M', 'F']})
 
 
 @dataclass

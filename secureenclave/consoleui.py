@@ -20,7 +20,11 @@ class ConsoleUI(object):
     def populate_object(self, object):
         inputs = []
         for attr in fields(type(object)):
-            inputs.append(Input('{}: '.format(attr.name.replace("_", " ").title())))
+            if "bullet_options" in attr.metadata:
+                options = attr.metadata['bullet_options']
+                inputs.append(Bullet('{}: '.format(attr.name.replace("_", " ").title()), options))
+            else:
+                inputs.append(Input('{}: '.format(attr.name.replace("_", " ").title())))
 
         values = VerticalPrompt(inputs, spacing=0).launch()
 
