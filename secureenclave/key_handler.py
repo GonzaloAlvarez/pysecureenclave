@@ -7,6 +7,9 @@ __metaclass__ = type
 
 from loguru import logger
 from bullet import Bullet
+from typing import List
+from secureenclave.datamodel import GpgKey
+from secureenclave.key_parser import _dedup_keys, _parse_gpg_list_cmd
 
 __gpg_trust_key__ = """trust
 5
@@ -37,14 +40,14 @@ class KeyHandler(object):
             return False
 
         created_key = None
-        for key_attempt in self.gpg.get_keys():
+        for key_attempt in self.get_keys():
             if new_key_uid in key_attempt.uid:
                 created_key = key_attempt
                 break
 
         if not created_key:
             logger.error(f"Failed to find the newly created GPG key with UID part: {new_key_uid}. Please check GPG manually.")
-            available_keys_uids = [k.uid for k in self.gpg.get_keys()]
+            available_keys_uids = [k.uid for k in self.get_keys()]
             logger.debug(f"Available key UIDs after creation attempt: {available_keys_uids}")
             return False
 
@@ -62,42 +65,46 @@ class KeyHandler(object):
         logger.success('GPG Key creation completed, including all subkeys. Use "key list" to explore.')
         return True
 
-    def del_key(self, public=True, secret=True):
-        keys = self.gpg.get_keys()
-        if not keys:
-            logger.info("No keys available to delete.")
-            return
-
-        selected = Bullet('Select which key to delete: ', keys).launch()  # type:ignore
-        if not selected:
-            logger.info("Key deletion cancelled.")
-            return
-
+    def del_key(self, fingerprint, public=True, secret=True):
         if secret:
-            gpg_cmd_secret = '{} -q --batch --delete-secret-key {}'.format(self.gpg.getbin(), selected.fingerprint)
+            gpg_cmd_secret = '{} -q --batch --yes --delete-secret-key {}'.format(self.gpg.getbin(), fingerprint)
             result_secret = self.gpg.run_cmd(gpg_cmd_secret, silent=True)
             if result_secret.ok:  # type: ignore
-                logger.success(f"Secret key for {selected.fingerprint} deleted successfully.")
+                logger.success(f"Secret key for {fingerprint} deleted successfully.")
             else:
-                logger.error(f"Failed to delete secret key for {selected.fingerprint}.")
+                logger.error(f"Failed to delete secret key for {fingerprint}.")
                 logger.debug(f"Output: {result_secret.stdout}")  # type: ignore
                 logger.debug(f"Error: {result_secret.stderr}")  # type: ignore
         else:
-            logger.info(f"Skipping secret key deletion for {selected.fingerprint} as per --secret flag.")
+            logger.info(f"Skipping secret key deletion for {fingerprint} as per --secret flag.")
 
         if public:
-            logger.info(f"Attempting to delete public key for {selected.fingerprint}...")
-            gpg_cmd_public = '{} -q --batch --delete-key {}'.format(self.gpg.getbin(), selected.fingerprint)
+            logger.info(f"Attempting to delete public key for {fingerprint}...")
+            gpg_cmd_public = '{} -q --batch --yes --delete-key {}'.format(self.gpg.getbin(), fingerprint)
             result_public = self.gpg.run_cmd(gpg_cmd_public, silent=True)
             if result_public.ok:  # type: ignore
-                logger.success(f"Public key for {selected.fingerprint} deleted successfully.")
+                logger.success(f"Public key for {fingerprint} deleted successfully.")
             else:
-                logger.error(f"Failed to delete public key for {selected.fingerprint}.")
+                logger.error(f"Failed to delete public key for {fingerprint}.")
                 logger.debug(f"Output: {result_public.stdout}")  # type: ignore
                 logger.debug(f"Error: {result_public.stderr}")  # type: ignore
         else:
-            logger.info(f"Skipping public key deletion for {selected.fingerprint} as per --public flag.")
+            logger.info(f"Skipping public key deletion for {fingerprint} as per --public flag.")
 
     def trust_key(self, fingerprint: str):
         gpg_cmd = '{} --quiet --expert --batch --display-charset utf-8 --command-fd 0 --no-tty --edit-key {}'.format(self.gpg.getbin(), fingerprint)
         self.gpg.run_cmd(gpg_cmd, silent=False, in_stream=__gpg_trust_key__)
+
+    def get_keys(self) -> List[GpgKey]:
+        logger.info('Getting the public keys')
+        command = f'{self.gpg.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-keys'
+        output = self.gpg.run_cmd(command, silent=True)
+        logger.debug(f'Public key output: {output.stdout}')
+        public_keys = _parse_gpg_list_cmd(output.stdout)
+        logger.info('Retrieving the secret keys')
+        command = f'{self.gpg.getbin()} --with-colons --fixed-list-mode --with-keygrip --with-fingerprint --list-secret-keys'
+        output = self.gpg.run_cmd(command, silent=True)
+        logger.debug(f'Secret key output: {output.stdout}')
+        secret_keys = _parse_gpg_list_cmd(output.stdout)
+        keys = _dedup_keys(public_keys, secret_keys)
+        return keys

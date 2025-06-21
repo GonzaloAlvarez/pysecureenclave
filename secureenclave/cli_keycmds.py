@@ -4,7 +4,7 @@ from click_loguru import ClickLoguru
 from loguru import logger
 from .secureenclave import SecureEnclave
 from .cui_keys import ConsoleUI_Keys
-from bullet import YesNo
+from bullet import Bullet, YesNo
 
 __all__ = ['key_list', 'key_del', 'key_new', 'key_trust', 'key_import']
 
@@ -19,9 +19,8 @@ click_loguru = ClickLoguru(__program__, __version__, stderr_format_func=lambda x
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
 def key_list(ctx, **kwargs):
-    logger.info(f'{ctx.obj.base_path}')
-    with SecureEnclave() as secure_enclave:
-        keys = secure_enclave.gpg.get_keys()
+    with SecureEnclave(base_path=ctx.obj.base_path) as secure_enclave:
+        keys = secure_enclave.key_handler.get_keys()
         if not keys:
             logger.info("No GPG keys found in the keyring.")
             return
@@ -38,7 +37,7 @@ def key_list(ctx, **kwargs):
 @click.argument('input_file', type=click.Path(exists=True))
 @click.pass_context
 def key_import(ctx, input_file, **kwargs):
-    with SecureEnclave() as secure_enclave:
+    with SecureEnclave(base_path=ctx.obj.base_path) as secure_enclave:
         secure_enclave.key_handler.import_key(input_file)
 
 
@@ -46,7 +45,7 @@ def key_import(ctx, input_file, **kwargs):
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
 def key_new(ctx, **kwargs):
-    with SecureEnclave() as secure_enclave:
+    with SecureEnclave(base_path=ctx.obj.base_path) as secure_enclave:
         console_ui_keys = ConsoleUI_Keys()
         new_key_uid, passphrase = console_ui_keys.prompt_for_new_key_details(secure_enclave)
 
@@ -63,15 +62,24 @@ def key_new(ctx, **kwargs):
 @click.option('--skip-public', is_flag=True, default=False, help='Do not delete the public key')
 @click.pass_context
 def key_del(ctx, skip_secret, skip_public, **kwargs):
-    with SecureEnclave() as secure_enclave:
-        secure_enclave.key_handler.del_key(secret=not skip_secret, public=not skip_public)
+    with SecureEnclave(base_path=ctx.obj.base_path) as secure_enclave:
+        keys = secure_enclave.key_handler.get_keys()
+        if not keys:
+            logger.info("No keys available to delete.")
+            return
+
+        selected = Bullet('Select which key to delete: ', keys).launch()  # type:ignore
+        if not selected:
+            logger.info("Key deletion cancelled.")
+            return
+        secure_enclave.key_handler.del_key(selected.fingerprint, secret=not skip_secret, public=not skip_public)
 
 
 @click.command(name='trust', help='Trust a specific key from the list')
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
 def key_trust(ctx, **kwargs):
-    with SecureEnclave() as secure_enclave:
+    with SecureEnclave(base_path=ctx.obj.base_path) as secure_enclave:
         key_list = secure_enclave.gpg.get_keys()
         trusted_count = 0
         for key in key_list:
