@@ -52,6 +52,7 @@ GPG_CAPABILITY_MAP: Dict[str, str] = {
     '?': "unknown"
 }
 
+
 def _parse_gpg_list_cmd(raw_output: str) -> List[GpgKey]:
     primary_keys_info: Dict[str, Dict[str, Any]] = {}
     current_pk_id_active: Optional[str] = None
@@ -207,6 +208,7 @@ def _parse_gpg_list_cmd(raw_output: str) -> List[GpgKey]:
     elif not raw_output:
         logger.debug("GPG output was empty.")
     return final_gpg_keys
+
 
 def _dedup_keys(public_keys: List[GpgKey], secret_keys: List[GpgKey]) -> List[GpgKey]:
     merged_keys_map: Dict[Tuple[str, str], GpgKey] = {}

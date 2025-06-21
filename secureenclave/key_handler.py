@@ -6,7 +6,6 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 from loguru import logger
-from bullet import Bullet
 from typing import List
 from secureenclave.datamodel import GpgKey
 from secureenclave.key_parser import _dedup_keys, _parse_gpg_list_cmd

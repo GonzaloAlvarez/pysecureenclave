@@ -2,7 +2,6 @@
 import sys
 import click
 
-from loguru import logger
 from click_loguru import ClickLoguru
 from .secureenclave import SecureEnclave
 from .cli_keycmds import key_list, key_del, key_new, key_trust, key_import

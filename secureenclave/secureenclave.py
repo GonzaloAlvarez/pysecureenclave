@@ -39,12 +39,12 @@ class SecureEnclave(object):
             logger.debug('Configuration removed')
 
     def __init__(self, base_path=None):
-        if base_path == None:
+        if base_path is None:
             self.home = Path(platformdirs.user_data_dir(__program__, __author__))
         else:
             if not Path(base_path).exists() and Path(base_path).is_dir():
                 Path(base_path).mkdir(parents=True, exist_ok=True)
-            self.home=Path(base_path)
+            self.home = Path(base_path)
         self.gpg = Gpg(self.home)
         self.gpg_agent = GpgAgent(self.gpg)
         self.smartcard = SmartCard(self.gpg)
