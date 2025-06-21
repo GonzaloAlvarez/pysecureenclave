@@ -2,14 +2,12 @@
 # -*- coding: utf-8 -*-
 # Copyright: (c) 2025, Gonzalo Alvarez
 
-import pytest
 from typing import List, Optional
 
 from secureenclave.datamodel import GpgKey, GpgSubkey
-from secureenclave.key_parser import _dedup_keys, _parse_gpg_list_cmd
+from secureenclave.key_parser import _dedup_keys
 
 
-# Helper functions (moved from test_gpg.py)
 def create_subkey(
     key_id: str,
     secret_available: bool,
