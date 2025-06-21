@@ -314,15 +314,12 @@ class Gpg(object):
     def get_keys(self) -> List[GpgKey]:
         logger.info('Getting the public keys')
         command = f'{self.getbin()} --with-colons --fixed-list-mode --with-fingerprint --list-keys'
-        output = invoke.run(command=command, env=self.getenv(), hide=True, warn=True)
+        output = self.run_cmd(command, silent=True)
         logger.debug(f'Public key output: {output.stdout}')
         public_keys = self._parse_gpg_list_cmd(output.stdout)
         logger.info('Retrieving the secret keys')
-        command = f'{self.getbin()} --with-fingerprint --with-keygrip --list-secret-keys'
-        output = invoke.run(command=command, env=self.getenv(), hide=True, warn=True)
-        logger.debug(f'Secret key output: {output.stdout}')
         command = f'{self.getbin()} --with-colons --fixed-list-mode --with-keygrip --with-fingerprint --list-secret-keys'
-        output = invoke.run(command=command, env=self.getenv(), hide=True, warn=True)
+        output = self.run_cmd(command, silent=True)
         logger.debug(f'Secret key output: {output.stdout}')
         secret_keys = self._parse_gpg_list_cmd(output.stdout)
         keys = self._dedup_keys(public_keys, secret_keys)
