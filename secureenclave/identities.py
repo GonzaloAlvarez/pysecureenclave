@@ -39,16 +39,11 @@ class IdentityManager:
     def save_identity(self, identity_info):
         """Saves a new identity to the database."""
         identity_id = str(uuid.uuid4())
-        # Safely get the intended active state, defaulting to False if 'active' attribute is missing
         intended_active_state = getattr(identity_info, 'active', False)
-        conn = None  # Initialize conn to None for the finally block
 
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            # Always insert as inactive first (active=0).
-            # This avoids unique constraint violation if another identity is already active.
-            # The correct active state will be established by calling self.set_active if necessary.
             cursor.execute('''
                 INSERT INTO identities (id, first_name, last_name, email, salutation, active)
                 VALUES (?, ?, ?, ?, ?, 0)
@@ -56,42 +51,30 @@ class IdentityManager:
             conn.commit()
             logger.success(f"Identity saved with ID: {identity_id}")
 
-            # Now, manage the active state
             if intended_active_state:
-                # If the identity was intended to be active, make it so.
-                # self.set_active will handle deactivating any other currently active identity.
                 self.set_active(identity_id)
             else:
-                # If the identity was intended to be inactive,
-                # check if any other identity is currently active in the database.
                 any_other_active = False
                 conn_check = None
                 try:
                     conn_check = sqlite3.connect(self.db_path)
                     cursor_check = conn_check.cursor()
-                    # Check if there's any active identity. Note: the new identity (identity_id)
-                    # is currently inactive in the DB at this point.
                     cursor_check.execute("SELECT 1 FROM identities WHERE active = 1 LIMIT 1")
                     if cursor_check.fetchone():
                         any_other_active = True
                 except sqlite3.Error as e_check:
                     logger.error(f"Database error during active check for new identity {identity_id}: {e_check}")
-                    # If check fails, we might not enforce an active identity. Consider implications.
                 finally:
                     if conn_check:
                         conn_check.close()
 
                 if not any_other_active:
-                    # No other identity is active, so make this newly added one active
-                    # to ensure there's always at least one active identity.
                     logger.info(f"No other active identity found. Setting newly added identity {identity_id} to active.")
                     self.set_active(identity_id)
-            
+
         except sqlite3.Error as e:
-            # Log with more context if possible
             identity_email = getattr(identity_info, 'email', 'unknown_email')
             logger.error(f"Failed to save identity ({identity_email}): {e}")
-            # Do not proceed to set_active if the initial save failed.
         finally:
             if conn:
                 conn.close()
@@ -161,7 +144,6 @@ class IdentityManager:
             return None
 
         was_active = identity_to_delete['active']
-        
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
