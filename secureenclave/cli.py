@@ -7,7 +7,8 @@ from .secureenclave import SecureEnclave
 from .cli_keycmds import key_list, key_del, key_new, key_trust, key_import
 from .cli_cardcmds import card_status, card_list, card_config, card_import_key
 from .cli_certcmds import cert_newca, cert_newserver
-from .cli_idcmds import id_new, id_list, id_del
+from .cli_idcmds import id_new, id_list, id_del, id_active
+from .cli_storecmds import store_new
 
 __program__ = 'secureenclave'
 __version__ = '0.0.1'
@@ -63,6 +64,16 @@ key.add_command(key_list)
 key.add_command(key_import)
 
 
+@cli.group(help='Store related functions')
+@click_loguru.init_logger(logfile=False)
+@click.pass_context
+def store(ctx, **kwargs):
+    pass
+
+
+store.add_command(store_new)
+
+
 @cli.group(help='Smart Card related operations')
 @click_loguru.init_logger(logfile=False)
 @click.pass_context
@@ -88,7 +99,6 @@ cert.add_command(cert_newserver)
 
 
 @cli.group(help='Identity related operations')
-@click_loguru.init_logger(logfile=False)
 @click.pass_context
 def id(ctx, **kwargs):
     pass
@@ -97,6 +107,7 @@ def id(ctx, **kwargs):
 id.add_command(id_new)
 id.add_command(id_list)
 id.add_command(id_del)
+id.add_command(id_active)
 
 
 @cli.command(name='purge', help='Removes configuration from this machine, including all trusted keys')

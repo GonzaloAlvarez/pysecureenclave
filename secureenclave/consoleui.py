@@ -20,6 +20,8 @@ class ConsoleUI(object):
     def populate_object(self, object):
         inputs = []
         for attr in fields(type(object)):
+            if "bullet_ignore" in attr.metadata:
+                continue
             if "bullet_options" in attr.metadata:
                 options = attr.metadata['bullet_options']
                 inputs.append(Bullet('{}: '.format(attr.name.replace("_", " ").title()), options))
@@ -28,7 +30,7 @@ class ConsoleUI(object):
 
         values = VerticalPrompt(inputs, spacing=0).launch()
 
-        for i, attr in enumerate(fields(type(object))):
+        for i, attr in enumerate([field for field in fields(type(object)) if "bullet_ignore" not in field.metadata]):
             setattr(object, attr.name, values[i][1])
 
         return object

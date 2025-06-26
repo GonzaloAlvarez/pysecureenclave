@@ -42,6 +42,7 @@ class ServerInfo(CertInfo):
 
 @dataclass
 class IdentityInfo(object):
+    active: bool = field(default=False, metadata={'bullet_ignore': True})
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email: Optional[str] = None

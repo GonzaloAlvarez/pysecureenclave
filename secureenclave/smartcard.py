@@ -11,9 +11,16 @@ import re
 from loguru import logger
 from ykman.device import list_all_devices, scan_devices
 from bullet import Bullet
+from io import StringIO
 
 from .datamodel import Card, CardKeyDetails
 from typing import Optional
+
+
+__gpg_fetch_key__ = """admin
+fetch
+quit
+"""
 
 
 class SmartCard:
@@ -38,6 +45,17 @@ class SmartCard:
 
     def list_cards(self):
         return list_all_devices()
+
+    def init_card(self):
+        if self.smartcard.is_card_installed():
+            key_list = self.gpg.get_keys()
+            logger.debug(key_list)
+            if hasattr(self, 'card_pub') and self.card_pub and len(list(filter(lambda x: x.pub == self.card_pub, key_list))) > 0:
+                logger.debug(f'key [{self.card_pub}] already in key list')
+            else:
+                logger.info('A card is installed. Retrieving remote key id from card')
+                gpg_cmd = '{} --quiet --card-edit --expert --batch --display-charset utf-8 --no-tty --command-fd 0'.format(self.gpg.getbin())
+                self.gpg.run_cmd(gpg_cmd, in_stream=StringIO(__gpg_fetch_key__))
 
     def is_card_installed(self):
         """Check if a smartcard is installed"""
