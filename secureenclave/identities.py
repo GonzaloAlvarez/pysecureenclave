@@ -70,8 +70,7 @@ class IdentityManager:
         finally:
             if conn:
                 conn.close()
-                
-                
+
     def get_identity(self, identity_id):
         """Retrieves an identity from the database by its ID."""
         try:
@@ -87,7 +86,6 @@ class IdentityManager:
         finally:
             if conn:
                 conn.close()
-                
 
     def set_active(self, identity_id):
         """Sets the active status of an identity in the database."""
@@ -96,25 +94,12 @@ class IdentityManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            # First, deactivate any currently active identity that is not the target identity
-            # This handles the case where another identity is active or if the target is already active (no change needed for it then).
             cursor.execute("UPDATE identities SET active = 0 WHERE active = 1 AND id != ?", (identity_id,))
-            
-            # Then, activate the target identity
-            # This will also correctly set it to active if it was previously inactive.
-            # If the unique constraint on 'active=1' was violated by a previous state,
-            # this ensures we try to set the target one to active.
-            # The unique index `one_active_row` will prevent multiple active rows.
-            # If the target identity was already active, the first query would not touch it,
-            # and this second query would effectively do nothing if it's already active=1.
-            # However, to be explicit and ensure it becomes active if it wasn't:
             cursor.execute("UPDATE identities SET active = 1 WHERE id = ?", (identity_id,))
-            
+
             if cursor.rowcount > 0:
                 logger.success(f"Identity with ID: {identity_id} set to active.")
             else:
-                # This could mean the ID doesn't exist, or it was already active and no other was active.
-                # To provide more specific feedback, a SELECT could be done, but for now, this is simpler.
                 logger.info(f"Attempted to set identity {identity_id} to active. Check if ID exists or was already active.")
 
             conn.commit()
@@ -142,7 +127,7 @@ class IdentityManager:
                 logger.warning(f"No identity found with ID: {identity_id}.")
             identities = self.list_identities()
             if identities:
-                active_identity = identities[0] 
+                active_identity = identities[0]
                 self.set_active(active_identity.id)
             else:
                 logger.warning("No identities left to set as active.")

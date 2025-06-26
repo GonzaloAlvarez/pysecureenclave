@@ -73,6 +73,7 @@ def store(ctx, **kwargs):
 
 store.add_command(store_new)
 
+
 @cli.group(help='Smart Card related operations')
 @click_loguru.init_logger(logfile=False)
 @click.pass_context

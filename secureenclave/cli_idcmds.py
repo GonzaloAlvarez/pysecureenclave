@@ -42,8 +42,8 @@ def id_list(ctx, **kwargs):
         logger.info("-" * 125)
         for identity in identities:
             logger.info(f"{'* ' if identity['active'] else '  '}{identity['id']:<38} {identity['first_name']:<15} {identity['last_name']:<15} {identity['email']:<30} {identity['salutation']:<15}")
-            
-            
+
+
 @click.command(name='active', help='Toggle the active status of an existing identity')
 @click.pass_context
 def id_active(ctx, **kwargs):
@@ -53,16 +53,15 @@ def id_active(ctx, **kwargs):
         if not identities:
             logger.info("No identities found")
             return
-        
+
         console_ui = ConsoleUI()
         selected_identity = console_ui.select_identity(identities, prompt_message="Select an identity to make active:")
-        
+
         if not selected_identity:
             logger.info("Identity activation cancelled or no identity selected.")
             return
-        
+
         secure_enclave.identity_manager.set_active(selected_identity['id'])
-        
 
 
 @click.command(name='del', help='Delete an existing identity')

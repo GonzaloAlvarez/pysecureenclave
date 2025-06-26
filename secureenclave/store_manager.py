@@ -8,12 +8,13 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+
 class StoreManager(object):
     def __init__(self, base_path):
         self.store_path = base_path.joinpath('store')
         if not self.store_path.exists():
             self.store_path.mkdir(parents=True)
-            
+
     def new_store(self):
         # Folder exists, so this function should:
         # 1. Check if the store is empty
@@ -31,7 +32,6 @@ class StoreManager(object):
         # --
         # Questions:
         # 1. Can you have a store without an identity? You can, but you cannot have a key without an identity associated.
-        # 2. What happens if I remove an identity? Should I remove the keys associated with the identity? 
+        # 2. What happens if I remove an identity? Should I remove the keys associated with the identity?
         #    I can have 'orphan' keys, and then I can a function to reposses them
-         
         pass

@@ -45,7 +45,7 @@ class SmartCard:
 
     def list_cards(self):
         return list_all_devices()
-    
+
     def init_card(self):
         if self.smartcard.is_card_installed():
             key_list = self.gpg.get_keys()
