@@ -113,26 +113,51 @@ class IdentityManager:
 
     def delete_identity(self, identity_id):
         """Deletes an identity from the database by its ID."""
+        # First, get the identity to check its active status and existence.
+        # get_identity handles its own DB connection and errors.
+        identity_to_delete = self.get_identity(identity_id)
+        if not identity_to_delete:
+            logger.warning(f"No identity found with ID: {identity_id} to delete.")
+            return None # Exit if identity doesn't exist
+
+        was_active = identity_to_delete['active']
+        
+        conn = None  # Connection for the DELETE operation
         try:
-            identity = self.get_identity(identity_id)
-            if not identity:
-                return None
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("DELETE FROM identities WHERE id = ?", (identity_id,))
             conn.commit()
+
             if cursor.rowcount > 0:
                 logger.success(f"Identity with ID: {identity_id} deleted successfully.")
+
+                # After successful deletion, ensure an active identity exists if needed.
+                # list_identities and set_active handle their own DB connections and errors.
+                remaining_identities = self.list_identities()
+                if not remaining_identities:
+                    logger.info("Last identity was deleted. No identities left to set as active.")
+                else:
+                    is_any_remaining_active = any(id_info['active'] for id_info in remaining_identities)
+                    
+                    # If the deleted identity was active, or if no other identity is currently active,
+                    # set the first available one as active.
+                    if was_active or not is_any_remaining_active:
+                        new_active_identity_id = remaining_identities[0]['id']
+                        logger.info(f"Ensuring an active identity. Attempting to set ID {new_active_identity_id} as active.")
+                        self.set_active(new_active_identity_id)
             else:
-                logger.warning(f"No identity found with ID: {identity_id}.")
-            identities = self.list_identities()
-            if identities:
-                active_identity = identities[0]
-                self.set_active(active_identity.id)
-            else:
-                logger.warning("No identities left to set as active.")
+                # This implies the ID was not found by the DELETE query,
+                # possibly due to a race condition (deleted after get_identity but before this DELETE).
+                logger.warning(f"Deletion query affected 0 rows for identity ID: {identity_id}. It might have been deleted by another process.")
+
         except sqlite3.Error as e:
-            logger.error(f"Failed to delete identity {identity_id}: {e}")
+            # This catches errors from the DELETE transaction (connect, execute, commit)
+            # or from list_identities / set_active if they re-raise sqlite3.Error.
+            if conn: # If an error occurred during the transaction, rollback.
+                conn.rollback()
+            logger.error(f"Database error during identity deletion process for ID {identity_id}: {e}")
+            # Potentially re-raise or handle more gracefully depending on requirements
         finally:
-            if conn:
+            if conn: # Ensure the connection for the DELETE operation is closed.
                 conn.close()
