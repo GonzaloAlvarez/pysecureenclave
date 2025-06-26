@@ -22,8 +22,12 @@ class IdentityManager:
                     first_name TEXT,
                     last_name TEXT,
                     email TEXT,
-                    salutation TEXT
+                    salutation TEXT,
+                    active BOOLEAN DEFAULT 0
                 )
+            ''')
+            cursor.execute('''
+                CREATE UNIQUE INDEX IF NOT EXISTS one_active_row ON identities(active) WHERE active=1
             ''')
             conn.commit()
         except sqlite3.Error as e:
@@ -39,9 +43,9 @@ class IdentityManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO identities (id, first_name, last_name, email, salutation)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (identity_id, identity_info.first_name, identity_info.last_name, identity_info.email, identity_info.salutation))
+                INSERT INTO identities (id, first_name, last_name, email, salutation, active)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (identity_id, identity_info.first_name, identity_info.last_name, identity_info.email, identity_info.salutation, identity_info.active))
             conn.commit()
             logger.success(f"Identity saved with ID: {identity_id}")
         except sqlite3.Error as e:
@@ -56,7 +60,7 @@ class IdentityManager:
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute("SELECT id, first_name, last_name, email, salutation FROM identities")
+            cursor.execute("SELECT id, first_name, last_name, email, salutation, active FROM identities")
             rows = cursor.fetchall()
             identities = [dict(row) for row in rows]
             return identities
@@ -66,10 +70,54 @@ class IdentityManager:
         finally:
             if conn:
                 conn.close()
+                
+                
+    def get_identity(self, identity_id):
+        """Retrieves an identity from the database by its ID."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, first_name, last_name, email, salutation, active FROM identities WHERE id = ?", (identity_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        except sqlite3.Error as e:
+            logger.error(f"Failed to get identity: {e}")
+            return None
+        finally:
+            if conn:
+                conn.close()
+                
+
+    def set_active(self, identity_id):
+        """Sets the active status of an identity in the database."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, first_name, last_name, email, salutation, active FROM identities")
+            rows = cursor.fetchall()
+            identities = [dict(row) for row in rows]
+            for identity in identities:
+                if identity['active'] and identity['id'] != identity_id:
+                    logger.info(f'Identity with ID: {identity['id']} is active. Setting to inactive.')
+                    cursor.execute("UPDATE identities SET active = 0 WHERE id = ?", (identity['id'],))
+                elif identity['id'] == identity_id and not identity['active']:
+                    logger.info(f'Identity with ID: {identity['id']} is been set to active as requested.')
+                    cursor.execute("UPDATE identities SET active = 1 WHERE id = ?", (identity['id'],))
+            conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Failed to set active status for identity: {e}")
+        finally:
+            if conn:
+                conn.close()
 
     def delete_identity(self, identity_id):
         """Deletes an identity from the database by its ID."""
         try:
+            identity = self.get_identity(identity_id)
+            if not identity:
+                return None
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("DELETE FROM identities WHERE id = ?", (identity_id,))
@@ -78,6 +126,12 @@ class IdentityManager:
                 logger.success(f"Identity with ID: {identity_id} deleted successfully.")
             else:
                 logger.warning(f"No identity found with ID: {identity_id}.")
+            identities = self.list_identities()
+            if identities:
+                active_identity = identities[0] 
+                self.set_active(active_identity.id)
+            else:
+                logger.warning("No identities left to set as active.")
         except sqlite3.Error as e:
             logger.error(f"Failed to delete identity {identity_id}: {e}")
         finally:

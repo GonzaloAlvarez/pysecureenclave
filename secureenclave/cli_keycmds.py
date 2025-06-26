@@ -1,4 +1,13 @@
-"""Console scripts for key handling"""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2025, Gonzalo Alvarez
+# -------------------------------------------------
+# Console scripts for key handling
+# -------------------------------------------------
+
+from __future__ import (absolute_import, division, print_function)
+__metaclass__ = type
+
 import click
 from click_loguru import ClickLoguru
 from loguru import logger
